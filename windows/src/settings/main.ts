@@ -857,8 +857,8 @@ function gamingSection(): HTMLElement {
       h("div", { class: "setting-name" }, h("label", { text: t(label) }), help(description)),
       h("div", { class: "setting-controls" }, control));
   const registeredSection = h("section", { class: "gaming-settings" },
-    h("h2", { text: t("Registered games") }),
-    h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") }));
+    h("h2", { text: t("Added games") }),
+    h("div", { class: "hint", text: t("These games are remembered after Coucou restarts. Pick a running application or enter an .exe filename to add a game that wasn't detected automatically.") }));
   const section = h("div", { class: "general-groups gaming-page" },
     h("section", { class: "general-group" },
       h("h2", { text: t("Game optimization") }),
@@ -901,7 +901,7 @@ function gamingSection(): HTMLElement {
   const draw = (games: { executable: string; name: string }[]) => {
     clear(list);
     if (!games.length) {
-      list.append(h("div", { class: "hint", text: t("No manually registered games yet.") }));
+      list.append(h("div", { class: "hint", text: t("No games added yet. Choose a running application above or enter its executable.") }));
       return;
     }
     for (const game of games) {
