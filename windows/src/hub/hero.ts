@@ -224,12 +224,13 @@ class Walker {
   dir = 1;
   hop = 0;
   hopV = 0;
-  walkPhase = Math.random() * Math.PI * 2;
+  walkPhase = 0;
   pause = 1 + Math.random() * 2;
   nextEvent = 2 + Math.random() * 4;
   waving = 0;
 
   constructor(public spec: MochiSpec) {
+    this.engine.isMini = true;
     this.engine.bodyColor = hexToRGB(spec.color);
     this.engine.setState(spec.state ?? "idle", true);
     if (spec.outfit && spec.outfit !== "none") this.engine.setOutfit(spec.outfit, false);
@@ -274,11 +275,11 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
       ctx.clearRect(0, 0, cw, ch);
       for (const w of walkers) {
         const s = w.spec.size;
-        let walking = false;
         const lo = left + s / 2;
         const hi = right - s / 2;
         if (w.spec.roams !== false) {
           if (Math.abs(w.target - w.x) < 1) {
+            w.walkPhase = Math.max(0, w.walkPhase - dt * 4);
             w.pause -= dt;
             if (w.pause <= 0) {
               w.target = lo + Math.random() * Math.max(1, hi - lo);
@@ -288,11 +289,9 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
             const step = Math.sign(w.target - w.x) * Math.min(Math.abs(w.target - w.x), 28 * dt);
             w.x += step;
             w.dir = Math.sign(step) || w.dir;
-            walking = step !== 0;
-            // Walk has its own subtle repeating bob. Starting a physics hop
-            // every frame on the ground repeatedly triggers squash(), pinning
-            // the body to the first flattened tween frame.
-            w.walkPhase += dt * 11;
+            // Match the original FlowHubMochis.swift: hop phase advances
+            // while walking, and its sine gives a soft, body-preserving lift.
+            w.walkPhase = (w.walkPhase + dt * 9) % (Math.PI * 2);
           }
         }
         w.nextEvent -= dt;
@@ -326,13 +325,13 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
         const box = s;
         const floor = ch - 8;
         ctx.save();
-        const walkBob = walking && w.hop === 0
-          ? Math.max(0, Math.sin(w.walkPhase)) * 2.2 : 0;
-        ctx.translate(w.x - box / 2, floor - box * 0.78 - w.hop - walkBob);
+        const walkBob = w.spec.roams !== false && w.hop === 0
+          ? Math.abs(Math.sin(w.walkPhase)) * box * 0.07 : 0;
+        ctx.translate(w.x - box / 2, floor - box * 0.92 - w.hop - walkBob);
         // A soft shadow on the floor.
         ctx.fillStyle = `rgba(0,0,0,${0.35 * (1 - Math.min(1, w.hop / 60))})`;
         ctx.beginPath();
-        ctx.ellipse(box / 2, box * 0.78 + w.hop - 1, s * 0.3, s * 0.05, 0, 0, Math.PI * 2);
+        ctx.ellipse(box / 2, box * 0.92 + w.hop + walkBob - 1, s * 0.3, s * 0.05, 0, 0, Math.PI * 2);
         ctx.fill();
         w.engine.draw(ctx, box, box);
         ctx.restore();

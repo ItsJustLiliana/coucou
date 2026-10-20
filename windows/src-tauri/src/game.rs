@@ -167,6 +167,65 @@ fn registered_games() -> Vec<RegisteredGame> {
         .unwrap_or_default()
 }
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunningApplication {
+    pub executable: String,
+    pub title: String,
+}
+
+#[tauri::command]
+pub fn game_list_running() -> Vec<RunningApplication> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible
+        };
+        use windows::Win32::System::Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION
+        };
+        use windows::core::PWSTR;
+        unsafe extern "system" fn collect(hwnd: HWND, param: LPARAM) -> BOOL {
+            let entries = &mut *(param.0 as *mut Vec<RunningApplication>);
+            if !IsWindowVisible(hwnd).as_bool() || GetWindowTextLengthW(hwnd) <= 0 {
+                return BOOL(1);
+            }
+            let mut pid = 0;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid == 0 || pid == std::process::id() { return BOOL(1); }
+            let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else {
+                return BOOL(1);
+            };
+            let mut name = vec![0u16; 32768];
+            let mut len = name.len() as u32;
+            let result = QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, PWSTR(name.as_mut_ptr()), &mut len);
+            let _ = windows::Win32::Foundation::CloseHandle(process);
+            if result.is_err() { return BOOL(1); }
+            let full_path = String::from_utf16_lossy(&name[..len as usize]);
+            let executable = full_path.rsplit(['\\', '/']).next().unwrap_or("").to_string();
+            if executable.is_empty() || ["explorer.exe", "applicationframehost.exe", "shellexperiencehost.exe"]
+                .iter().any(|p| executable.eq_ignore_ascii_case(p)) { return BOOL(1); }
+            let mut title = vec![0u16; (GetWindowTextLengthW(hwnd) as usize + 1).min(1024)];
+            let size = GetWindowTextW(hwnd, &mut title);
+            if size <= 0 { return BOOL(1); }
+            let title = String::from_utf16_lossy(&title[..size as usize]);
+            if !entries.iter().any(|a| a.executable.eq_ignore_ascii_case(&executable)) {
+                entries.push(RunningApplication { executable, title });
+            }
+            BOOL(1)
+        }
+        let mut entries = Vec::new();
+        unsafe {
+            let _ = EnumWindows(Some(collect), LPARAM((&mut entries as *mut Vec<RunningApplication>) as isize));
+        }
+        entries.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        entries
+    }
+    #[cfg(not(windows))]
+    { Vec::new() }
+}
+
 #[tauri::command]
 pub fn game_list_registered() -> Vec<RegisteredGame> { registered_games() }
 

@@ -469,8 +469,13 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
         h("div", { class: "game-meta", "aria-live": "polite", text: t("Waiting requests: {count}", { count: WaitingRequests.count }) }),
       ] : []),
       ...(playing && !State.settings.gameOptimization ? [h("button", {
-        type: "button", class: "btn secondary game-optimization", text: t("Optimalisation"), onclick: () => void Bridge.openSettingsWindow("general"),
+        type: "button", class: "btn secondary game-optimization", text: t("Optimization"), onclick: () => void Bridge.openSettingsWindow("gaming"),
       })] : []),
+      h("button", {
+        type: "button", class: "btn secondary game-register", text: t("Mistake?"),
+        title: t("Open Gaming to register or correct a detected game"),
+        onclick: () => void Bridge.openSettingsWindow("gaming"),
+      }),
       ...(State.integrations[task.id]?.error ? [h("div", { class: "hint", style: "color:#F4505E", role: "alert", text: t("Sorry this action failed") })] : []));
   }
   if (task.id === "integration_n8n") {
