@@ -215,7 +215,7 @@ pub fn game_list_running() -> Vec<RunningApplication> {
             }
             BOOL(1)
         }
-        let mut entries = Vec::new();
+        let mut entries: Vec<RunningApplication> = Vec::new();
         unsafe {
             let _ = EnumWindows(Some(collect), LPARAM((&mut entries as *mut Vec<RunningApplication>) as isize));
         }
