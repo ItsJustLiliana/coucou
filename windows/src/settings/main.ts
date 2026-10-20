@@ -838,9 +838,32 @@ function localSection(customKey: boolean): HTMLElement {
 
 // ── Registered Games ─────────────────────────────────────────────────────────
 function gamingSection(): HTMLElement {
-  const section = h("section", { class: "gaming-settings" },
-    h("h2", { text: t("Registered games") }),
-    h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") }));
+  const optimizationAuto = toggle(settings.gameOptimizationAuto, on => {
+    settings.gameOptimizationAuto = on;
+    void save();
+  }) as HTMLButtonElement;
+  optimizationAuto.disabled = !settings.gameOptimization;
+  const optimization = toggle(settings.gameOptimization, on => {
+    settings.gameOptimization = on;
+    optimizationAuto.disabled = !on;
+    void save();
+  });
+  const help = (description: string) => h("span", {
+    class: "setting-help", tabindex: "0", role: "note",
+    "aria-label": t(description), "data-help": t(description), text: "?",
+  });
+  const gameSetting = (label: string, description: string, control: HTMLElement) =>
+    h("div", { class: "row setting-row" },
+      h("div", { class: "setting-name" }, h("label", { text: t(label) }), help(description)),
+      h("div", { class: "setting-controls" }, control));
+  const section = h("div", { class: "general-groups gaming-page" },
+    h("section", { class: "general-group" },
+      h("h2", { text: t("Game optimization") }),
+      gameSetting("Game optimization", "Reduce Coucou activity while playing a game.", optimization),
+      gameSetting("Automatically turn on when a game is open", "Keep optimization active while a detected game is open, including in the background.", optimizationAuto)),
+    h("section", { class: "gaming-settings" },
+      h("h2", { text: t("Registered games") }),
+      h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") })));
   const list = h("div", { class: "registered-games-list" });
   const error = h("div", { class: "hint", role: "status" });
   const executable = h("input", { type: "text", placeholder: "Game.exe", "aria-label": t("Executable filename") }) as HTMLInputElement;
@@ -895,7 +918,7 @@ function gamingSection(): HTMLElement {
   section.append(
     h("div", { class: "row registered-game-form" }, executable, name, add),
     error, list,
-    h("div", { class: "hint", text: t("Only the executable filename is matched, not the installation folder. Detection stays local to your computer. Game optimization can still be configured in General.") }));
+    h("div", { class: "hint", text: t("Only the executable filename is matched, not the installation folder. Detection stays local to your computer.") }));
   if (HOST_OS !== "windows") {
     executable.disabled = true; name.disabled = true; add.disabled = true;
     error.textContent = t("Manual game registration is currently available on Windows.");
@@ -1153,12 +1176,6 @@ function generalSection(): HTMLElement {
     void save();
   });
 
-  const automaticGameOptimization = toggle(settings.gameOptimizationAuto, v => {
-    settings.gameOptimizationAuto = v;
-    void save();
-  }) as HTMLButtonElement;
-  automaticGameOptimization.disabled = !settings.gameOptimization;
-
   const group = (name: string, ...children: HTMLElement[]) =>
     h("section", { class: "general-group" }, h("h2", { text: t(name) }), ...children);
   const info = (description: string) => h("span", {
@@ -1187,16 +1204,6 @@ function generalSection(): HTMLElement {
       setting("Island opacity", "Adjust transparency between 50% and 100%.", opacity, opacityValue),
       setting("Launch at startup", "Launch Coucou automatically when signing in.",
         toggle(settings.autostart, v => { settings.autostart = v; void save(); }))),
-    ...(HOST_OS === "windows" ? [
-      group("Gaming",
-        setting(N_("Game optimization"), N_("Reduce Coucou activity while playing a game."),
-          toggle(settings.gameOptimization, v => {
-            settings.gameOptimization = v;
-            automaticGameOptimization.disabled = !v;
-            void save();
-          })),
-        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization)),
-    ] : []),
     group("Mochi & music",
       setting("Dance to the beat", "Mochi follows Spotify's detected beat. Audio is analysed locally, without a microphone.",
         toggle(settings.beatSync, v => { settings.beatSync = v; void save(); })),
