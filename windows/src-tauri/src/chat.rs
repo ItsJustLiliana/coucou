@@ -222,6 +222,7 @@ pub async fn send(
     settings: &Settings,
     query: String,
     context: Option<ChatContext>,
+    request_id: u64,
 ) -> Result<ChatReply, String> {
     let context = context.map(checked_context).transpose()?;
     if context.is_some() {
@@ -239,7 +240,7 @@ pub async fn send(
         return openai_compat::send(chat, p, &model, query, context).await;
     }
     if let Some(server) = local_chat::server(settings, provider) {
-        return local_chat::send(app, chat, &server, &model, query, context).await;
+        return local_chat::send(app, chat, &server, &model, query, context, request_id).await;
     }
     Err(format!("Unknown chat provider: {provider}"))
 }
