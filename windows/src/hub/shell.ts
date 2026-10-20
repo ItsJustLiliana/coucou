@@ -13,7 +13,7 @@ import { icon } from "./ui";
 
 export type PageId =
   | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
-  | "general" | "pills" | "agents" | "chat" | "voice" | "notifications" | "integrations" | "phone" | "shortcuts";
+  | "general" | "pills" | "agents" | "chat" | "voice" | "notifications" | "integrations" | "gaming" | "phone" | "shortcuts";
 
 interface PageDef {
   id: PageId;
