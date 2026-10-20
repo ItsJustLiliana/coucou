@@ -279,6 +279,7 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
         const hi = right - s / 2;
         if (w.spec.roams !== false) {
           if (Math.abs(w.target - w.x) < 1) {
+            w.walkPhase = Math.max(0, w.walkPhase - dt * 4);
             w.pause -= dt;
             if (w.pause <= 0) {
               w.target = lo + Math.random() * Math.max(1, hi - lo);
@@ -290,7 +291,7 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
             w.dir = Math.sign(step) || w.dir;
             // Match the original FlowHubMochis.swift: hop phase advances
             // while walking, and its sine gives a soft, body-preserving lift.
-            w.walkPhase += dt * 9;
+            w.walkPhase = (w.walkPhase + dt * 9) % (Math.PI * 2);
           }
         }
         w.nextEvent -= dt;
@@ -330,7 +331,7 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
         // A soft shadow on the floor.
         ctx.fillStyle = `rgba(0,0,0,${0.35 * (1 - Math.min(1, w.hop / 60))})`;
         ctx.beginPath();
-        ctx.ellipse(box / 2, box * 0.78 + w.hop - 1, s * 0.3, s * 0.05, 0, 0, Math.PI * 2);
+        ctx.ellipse(box / 2, box * 0.92 + w.hop + walkBob - 1, s * 0.3, s * 0.05, 0, 0, Math.PI * 2);
         ctx.fill();
         w.engine.draw(ctx, box, box);
         ctx.restore();
