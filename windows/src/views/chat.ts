@@ -235,6 +235,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
 
   let sending = false;
+  let activeRequestId = 0;
   let renderedCount = -1;
   // A local model answers token by token: where its text so far is shown.
   let live: HTMLElement | null = null;
@@ -253,8 +254,9 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     else picker.open();
   });
 
-  void onEvent<string>("chat-delta", (text) => {
-    if (!sending || !text) return; // nothing visible yet: the dots stay
+  void onEvent<{ requestId: number; text: string }>("chat-delta", (delta) => {
+    if (!sending || delta.requestId !== activeRequestId || !delta.text) return;
+    const text = delta.text; // nothing visible yet: the dots stay
     if (!live) {
       live = h("div", { class: "reply" });
       log.querySelector(".typing")?.parentElement?.remove();
@@ -270,6 +272,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     if (picker.isOpen) picker.close();
     input.value = "";
     sending = true;
+    const requestId = ++activeRequestId;
     drawModelButton();
     Sound.play("send");
 
@@ -283,7 +286,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       State.chatHistory.length === 1 && file ? { kind: "file", name: file.name, path: file.path } : null;
 
     try {
-      const reply = await Bridge.chatSend(query, context);
+      const reply = await Bridge.chatSend(query, context, requestId);
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
       State.stateOverride = null;
       Sound.play("finish");
