@@ -224,6 +224,7 @@ class Walker {
   dir = 1;
   hop = 0;
   hopV = 0;
+  walkPhase = Math.random() * Math.PI * 2;
   pause = 1 + Math.random() * 2;
   nextEvent = 2 + Math.random() * 4;
   waving = 0;
@@ -273,6 +274,7 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
       ctx.clearRect(0, 0, cw, ch);
       for (const w of walkers) {
         const s = w.spec.size;
+        let walking = false;
         const lo = left + s / 2;
         const hi = right - s / 2;
         if (w.spec.roams !== false) {
@@ -286,8 +288,11 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
             const step = Math.sign(w.target - w.x) * Math.min(Math.abs(w.target - w.x), 28 * dt);
             w.x += step;
             w.dir = Math.sign(step) || w.dir;
-            // A little bounce in the walk.
-            if (w.hop === 0 && w.hopV === 0) w.hopV = 70;
+            walking = step !== 0;
+            // Walk has its own subtle repeating bob. Starting a physics hop
+            // every frame on the ground repeatedly triggers squash(), pinning
+            // the body to the first flattened tween frame.
+            w.walkPhase += dt * 11;
           }
         }
         w.nextEvent -= dt;
@@ -304,6 +309,7 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
           w.hop = Math.max(0, w.hop + w.hopV * dt);
           if (w.hop === 0 && w.hopV < 0) {
             w.hopV = 0;
+            // Only real jumps get the impact squash, not each walk step.
             w.engine.squash();
           }
         }
@@ -320,7 +326,9 @@ export function troupe(canvas: HTMLCanvasElement, cast: MochiSpec[], width: numb
         const box = s;
         const floor = ch - 8;
         ctx.save();
-        ctx.translate(w.x - box / 2, floor - box * 0.78 - w.hop);
+        const walkBob = walking && w.hop === 0
+          ? Math.max(0, Math.sin(w.walkPhase)) * 2.2 : 0;
+        ctx.translate(w.x - box / 2, floor - box * 0.78 - w.hop - walkBob);
         // A soft shadow on the floor.
         ctx.fillStyle = `rgba(0,0,0,${0.35 * (1 - Math.min(1, w.hop / 60))})`;
         ctx.beginPath();
