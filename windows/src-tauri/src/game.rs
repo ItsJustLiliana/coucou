@@ -178,14 +178,14 @@ pub struct RunningApplication {
 pub fn game_list_running() -> Vec<RunningApplication> {
     #[cfg(windows)]
     {
-        use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+        use windows::Win32::Foundation::{HWND, LPARAM};
         use windows::Win32::UI::WindowsAndMessaging::{
             EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible
         };
         use windows::Win32::System::Threading::{
             OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION
         };
-        use windows::core::PWSTR;
+        use windows::core::{BOOL, PWSTR};
         unsafe extern "system" fn collect(hwnd: HWND, param: LPARAM) -> BOOL {
             let entries = &mut *(param.0 as *mut Vec<RunningApplication>);
             if !IsWindowVisible(hwnd).as_bool() || GetWindowTextLengthW(hwnd) <= 0 {
