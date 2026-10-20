@@ -443,6 +443,7 @@ class AppState {
    * Safe to call any number of times. AppState.loadIntegrationTasks on macOS.
    */
   loadIntegrationTasks() {
+    const previousMain = this.settings.mainPill;
     const d = sanitizeDeclared(this.settings, this.os);
     this.settings.mainPill = d.mainPill;
     this.settings.activeIntegrations = d.activeIntegrations;
@@ -459,7 +460,13 @@ class AppState {
       if (def) t.color = pillColor(def.id, def.color, this.settings.pillColors);
     }
     this.tasks = orderPills(this.tasks, d.mainPill);
-    if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId)) this.focusId = d.mainPill;
+    // A previous main pill can remain in tasks while its session winds down.
+    // If it still owns focus after the user picked a new main tool, move focus
+    // to the newly selected pill without interrupting other live agent sessions.
+    if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId) ||
+        (previousMain !== d.mainPill && this.focusId === previousMain)) {
+      this.focusId = d.mainPill;
+    }
     this.notify();
   }
 
