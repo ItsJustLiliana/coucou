@@ -836,6 +836,75 @@ function localSection(customKey: boolean): HTMLElement {
   return section;
 }
 
+// ── Registered Games ─────────────────────────────────────────────────────────
+function gamingSection(): HTMLElement {
+  const section = h("section", { class: "gaming-settings" },
+    h("h2", { text: t("Registered games") }),
+    h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") }));
+  const list = h("div", { class: "registered-games-list" });
+  const error = h("div", { class: "hint", role: "status" });
+  const executable = h("input", { type: "text", placeholder: "Game.exe", "aria-label": t("Executable filename") }) as HTMLInputElement;
+  const name = h("input", { type: "text", placeholder: t("Game name"), "aria-label": t("Game name") }) as HTMLInputElement;
+  executable.maxLength = 128;
+  name.maxLength = 80;
+  const add = h("button", { text: t("Add game") }) as HTMLButtonElement;
+  const draw = (games: { executable: string; name: string }[]) => {
+    clear(list);
+    if (!games.length) {
+      list.append(h("div", { class: "hint", text: t("No manually registered games yet.") }));
+      return;
+    }
+    for (const game of games) {
+      const remove = h("button", { class: "secondary", text: t("Remove") }) as HTMLButtonElement;
+      remove.addEventListener("click", async () => {
+        remove.disabled = true;
+        try {
+          draw(await Bridge.gameUnregister(game.executable));
+          error.textContent = "";
+        } catch (err) {
+          remove.disabled = false;
+          error.textContent = String(err);
+        }
+      });
+      list.append(h("div", { class: "row registered-game-row" },
+        h("div", { class: "registered-game-name" },
+          h("strong", { text: game.name }),
+          h("span", { class: "hint", text: game.executable })),
+        remove));
+    }
+  };
+  const refresh = async () => {
+    try { draw(await Bridge.gameListRegistered()); }
+    catch (err) { error.textContent = String(err); }
+  };
+  add.addEventListener("click", async () => {
+    if (!executable.value.trim() || !name.value.trim()) {
+      error.textContent = t("Enter an executable filename and a game name.");
+      return;
+    }
+    add.disabled = true;
+    try {
+      draw(await Bridge.gameRegister(executable.value, name.value));
+      executable.value = "";
+      name.value = "";
+      error.textContent = "";
+    } catch (err) {
+      error.textContent = String(err);
+    } finally { add.disabled = false; }
+  });
+  section.append(
+    h("div", { class: "row registered-game-form" }, executable, name, add),
+    error, list,
+    h("div", { class: "hint", text: t("Only the executable filename is matched, not the installation folder. Detection stays local to your computer. Game optimization can still be configured in General.") }));
+  if (HOST_OS !== "windows") {
+    executable.disabled = true; name.disabled = true; add.disabled = true;
+    error.textContent = t("Manual game registration is currently available on Windows.");
+  } else {
+    void refresh();
+  }
+  return section;
+}
+
 // ── Integrations section ──────────────────────────────────────────────────────
 
 interface IntegrationDef {
@@ -1529,6 +1598,7 @@ async function render() {
     agents: () => [claudeSection(status), agentsSection(agents), planSection(status)],
     chat: () => [apiSection(hasKey), chatProvidersSection(chatKeys, keyChanged), localSection(customKey)],
     integrations: () => [integrationsSection(present)],
+    gaming: () => [gamingSection()],
     phone: () => [phoneSection(settings.phoneLink ?? false, toggle, settings)],
     shortcuts: () => [shortcutsSection(shortcutReport)],
   };
