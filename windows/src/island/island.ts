@@ -1345,7 +1345,8 @@ export class Island {
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.openOnHover = State.settings.openOnHover;
-    this.fsm.keepVisible = State.settings.keepVisible;
+    this.fsm.keepVisible = State.settings.keepVisible || State.tasks.some((task) =>
+      ["thinking", "working", "ratelimit", "question", "approval"].includes(task.state));
     this.fsm.petitToHiddenDelay = State.settings.compactHideDelay ?? 60;
     State.notify();
   }
