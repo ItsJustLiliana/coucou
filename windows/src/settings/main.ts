@@ -1106,16 +1106,17 @@ function generalSection(): HTMLElement {
         toggle(settings.soundEnabled, v => { settings.soundEnabled = v; void save(); }), volume),
       h("div", { class: "row setting-actions" }, soundsFolder, reloadSounds, customCount,
         info("Replace a sound by placing a file with its sound name in the sounds folder, then reload."))),
-    group("Island behavior",
-      ...(HOST_OS === "windows" ? [
+    ...(HOST_OS === "windows" ? [
+      group("Gaming",
         setting(N_("Game optimization"), N_("Reduce Coucou activity while playing a game."),
           toggle(settings.gameOptimization, v => {
             settings.gameOptimization = v;
             automaticGameOptimization.disabled = !v;
             void save();
           })),
-        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization),
-      ] : []),
+        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization)),
+    ] : []),
+    group("Island behavior",
       setting("Open on hover", "Hovering opens the island. It closes after your pointer leaves; click inside to keep it open.",
         toggle(settings.openOnHover, v => { settings.openOnHover = v; void save(); })),
       setting("Keep Mochi on screen", N_("When disabled, the small island hides after the chosen delay."),
@@ -1135,7 +1136,7 @@ function generalSection(): HTMLElement {
           toggle(settings.chatMemory, v => { settings.chatMemory = v; void save(); })),
       ] : [])),
     group("Updates", updateRow()),
-    group("Privacy & history", ...recapRows().slice(0, 2), sendLogRow()),
+    group("Privacy & history", ...recapRows(), sendLogRow()),
     group("Language", languageRow()),
   );
 }
@@ -1401,19 +1402,17 @@ function recapRows(): HTMLElement[] {
     },
   }) as HTMLButtonElement;
   return [
-    h("div", { class: "row" },
-      h("label", { text: T.label }),
-      sw,
-      h("span", { class: "hint", text: T.keep }),
+    h("div", { class: "row setting-row" },
+      h("div", { class: "setting-name" }, h("label", { text: T.label })),
+      h("div", { class: "setting-controls" }, sw, h("span", { class: "hint", text: T.keep })),
     ),
-    h("div", { class: "row" },
-      h("label", {}),
-      clearBtn,
-      feedback,
+    h("div", { class: "row setting-row" },
+      h("div", { class: "setting-name" }, h("label", { text: T.clear })),
+      h("div", { class: "setting-controls" }, clearBtn, feedback),
     ),
-    h("div", { class: "row" },
-      h("label", {}),
-      h("span", { class: "hint", style: "flex:1 1 0;min-width:0", text: T.about }),
+    h("div", { class: "row setting-row" },
+      h("div", { class: "setting-name" }),
+      h("div", { class: "setting-controls" }, h("span", { class: "hint", text: T.about })),
     ),
   ];
 }
