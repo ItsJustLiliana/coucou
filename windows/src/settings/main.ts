@@ -871,6 +871,32 @@ function gamingSection(): HTMLElement {
   const name = h("input", { type: "text", placeholder: t("Game name"), "aria-label": t("Game name") }) as HTMLInputElement;
   executable.maxLength = 128;
   name.maxLength = 80;
+  const running = h("select", { "aria-label": t("Select a running application") }) as HTMLSelectElement;
+  const selectHint = h("option", { value: "", text: t("Select a running application…") });
+  running.append(selectHint);
+  running.addEventListener("change", () => {
+    if (!running.value) return;
+    const selected = running.options[running.selectedIndex];
+    executable.value = running.value;
+    name.value = selected.dataset.title || running.value.replace(/\\.exe$/i, "");
+  });
+  const refreshRunning = h("button", { text: t("Refresh applications") }) as HTMLButtonElement;
+  const loadRunning = async () => {
+    refreshRunning.disabled = true;
+    try {
+      const apps = await Bridge.gameListRunning();
+      running.replaceChildren(h("option", { value: "", text: t("Select a running application…") }));
+      for (const app of apps) {
+        const option = h("option", { value: app.executable, text: `${app.title} (${app.executable})` }) as HTMLOptionElement;
+        option.dataset.title = app.title;
+        running.append(option);
+      }
+      error.textContent = "";
+    } catch (err) {
+      error.textContent = String(err);
+    } finally { refreshRunning.disabled = false; }
+  };
+  refreshRunning.addEventListener("click", () => void loadRunning());
   const add = h("button", { text: t("Add game") }) as HTMLButtonElement;
   const draw = (games: { executable: string; name: string }[]) => {
     clear(list);
@@ -917,14 +943,17 @@ function gamingSection(): HTMLElement {
     } finally { add.disabled = false; }
   });
   registeredSection.append(
+    h("div", { class: "row registered-game-picker" }, running, refreshRunning),
     h("div", { class: "row registered-game-form" }, executable, name, add),
     error, list,
     h("div", { class: "hint", text: t("Only the executable filename is matched, not the installation folder. Detection stays local to your computer.") }));
   if (HOST_OS !== "windows") {
     executable.disabled = true; name.disabled = true; add.disabled = true;
+    running.disabled = true; refreshRunning.disabled = true;
     error.textContent = t("Manual game registration is currently available on Windows.");
   } else {
     void refresh();
+    void loadRunning();
   }
   return section;
 }
