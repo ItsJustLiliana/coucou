@@ -1393,12 +1393,17 @@ function recapRows(): HTMLElement[] {
     text: T.clear,
     onclick: async () => {
       clearBtn.disabled = true;
-      await Bridge.recapClear();
-      feedback.textContent = T.cleared;
-      window.setTimeout(() => {
-        clearBtn.disabled = false;
-        feedback.textContent = "";
-      }, 2400);
+      try {
+        await Bridge.recapClear();
+        feedback.textContent = T.cleared;
+      } catch {
+        feedback.textContent = t("Could not clear history. Try again.");
+      } finally {
+        window.setTimeout(() => {
+          clearBtn.disabled = false;
+          feedback.textContent = "";
+        }, 2400);
+      }
     },
   }) as HTMLButtonElement;
   return [
