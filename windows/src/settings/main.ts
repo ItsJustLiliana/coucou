@@ -84,7 +84,12 @@ function sendLogRow(): HTMLElement {
 function notificationAppsRow(): HTMLElement {
   const box = h("div", { class: "notification-app-list" });
   let shown = "";
-  const fill = () => void Bridge.notificationApps().then((apps) => {
+  const fill = () => {
+    if (!box.isConnected && mounted) {
+      window.clearInterval(interval);
+      return;
+    }
+    void Bridge.notificationApps().then((apps) => {
     const key = `${settings.showNotifications}|${(apps ?? []).join("|")}`;
     if (key === shown) return;
     shown = key;
@@ -102,9 +107,12 @@ function notificationAppsRow(): HTMLElement {
         }),
       ));
     }
-  });
+    }).catch(() => { /* Keep the last known app list during a transient error. */ });
+  };
+  let mounted = false;
+  queueMicrotask(() => { mounted = true; });
   fill();
-  window.setInterval(fill, 5000);
+  const interval = window.setInterval(fill, 5000);
   return box;
 }
 
