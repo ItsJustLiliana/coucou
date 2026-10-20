@@ -404,6 +404,9 @@ mod tests {
     fn recognizes_games_without_treating_every_app_as_a_game() {
         assert_eq!(game_name(r"D:\SteamLibrary\steamapps\common\Elden Ring\Game\eldenring.exe"), Some("Elden Ring".into()));
         assert_eq!(game_name(r"C:\Riot Games\VALORANT\VALORANT-Win64-Shipping.exe"), Some("VALORANT".into()));
+        assert_eq!(game_name(r"C:\Battle.net\Overwatch\Overwatch.exe"), Some("Overwatch".into()));
+        assert_eq!(game_name(r"D:\Epic Games\Fortnite\FortniteGame\Binaries\Win64\FortniteClient-Win64-Shipping.exe"), Some("Fortnite".into()));
+        assert_eq!(game_name(r"C:\Games\Genshin Impact\GenshinImpact.exe"), Some("Genshin Impact".into()));
         assert_eq!(game_name(r"C:\Windows\explorer.exe"), None);
         assert_eq!(game_name(r"D:\steamapps\common\Game\launcher.exe"), None);
         assert_eq!(game_name(r"D:\steamapps\common\Steamworks Shared\tool.exe"), None);
