@@ -40,7 +40,7 @@ pub fn performance_active() -> bool { PERFORMANCE.load(Ordering::Relaxed) }
 /// Hidden game cursors still have desktop coordinates: never hit-test them.
 #[tauri::command]
 pub fn pointer_blocked() -> bool {
-    GAME_FOCUSED.load(Ordering::Relaxed) || performance_active() || cursor_hidden()
+    performance_active() || (GAME_FOCUSED.load(Ordering::Relaxed) && cursor_hidden())
 }
 
 fn cursor_hidden() -> bool {
