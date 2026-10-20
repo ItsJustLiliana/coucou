@@ -381,6 +381,13 @@ export const Bridge = {
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),
 
+  // ── Registered games ──────────────────────────────────────────────────────
+  gameListRegistered: () => callOrThrow<{ executable: string; name: string }[]>("game_list_registered"),
+  gameRegister: (executable: string, name: string) =>
+    callOrThrow<{ executable: string; name: string }[]>("game_register", { executable, name }),
+  gameUnregister: (executable: string) =>
+    callOrThrow<{ executable: string; name: string }[]>("game_unregister", { executable }),
+
   // ── Global shortcuts ──────────────────────────────────────────────────────
   /** How each global shortcut went when Rust last registered them. */
   shortcutsStatus: () => call<ShortcutsReport>("shortcuts_status"),
