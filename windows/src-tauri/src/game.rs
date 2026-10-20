@@ -149,6 +149,57 @@ pub fn sync(app: &AppHandle, force: bool) {
 
 pub const ID: &str = "integration_game";
 
+// Manually registered executable names are stored locally, not sent to a server.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisteredGame {
+    pub executable: String,
+    pub name: String,
+}
+
+fn registry_path() -> std::path::PathBuf {
+    crate::platform::config_dir().join("registered-games.json")
+}
+
+fn registered_games() -> Vec<RegisteredGame> {
+    std::fs::read_to_string(registry_path()).ok()
+        .and_then(|s| serde_json::from_str::<Vec<RegisteredGame>>(&s).ok())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn game_list_registered() -> Vec<RegisteredGame> { registered_games() }
+
+#[tauri::command]
+pub fn game_register(executable: String, name: String) -> Result<Vec<RegisteredGame>, String> {
+    let executable = executable.trim().rsplit(['\\', '/']).next().unwrap_or("").to_ascii_lowercase();
+    let name = name.trim();
+    if !executable.ends_with(".exe") || executable.len() > 128 || executable.len() < 5
+        || !executable.chars().all(|c| c.is_ascii_alphanumeric() || " ._-".contains(c))
+        || name.is_empty() || name.len() > 80
+    {
+        return Err("Enter a valid Windows .exe filename and game name.".into());
+    }
+    let mut games = registered_games();
+    games.retain(|g| !g.executable.eq_ignore_ascii_case(&executable));
+    games.push(RegisteredGame { executable, name: name.to_string() });
+    games.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    let path = registry_path();
+    if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+    std::fs::write(path, serde_json::to_vec_pretty(&games).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    Ok(games)
+}
+
+#[tauri::command]
+pub fn game_unregister(executable: String) -> Result<Vec<RegisteredGame>, String> {
+    let mut games = registered_games();
+    games.retain(|g| !g.executable.eq_ignore_ascii_case(executable.trim()));
+    std::fs::write(registry_path(), serde_json::to_vec_pretty(&games).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    Ok(games)
+}
+
 // Fullscreen alone is deliberately not evidence of a game.
 fn game_name(path: &str) -> Option<String> {
     let normalized = path.replace('/', "\\");
@@ -163,6 +214,14 @@ fn game_name(path: &str) -> Option<String> {
         "overwatch.exe" => Some("Overwatch"),
         "minecraft.windows.exe" => Some("Minecraft"),
         "rocketleague.exe" => Some("Rocket League"),
+        "eldenring.exe" => Some("Elden Ring"),
+        "cs2.exe" => Some("Counter-Strike 2"),
+        "gta5.exe" => Some("Grand Theft Auto V"),
+        "genshinimpact.exe" => Some("Genshin Impact"),
+        "starrail.exe" => Some("Honkai: Star Rail"),
+        "ffxiv_dx11.exe" => Some("Final Fantasy XIV"),
+        "wow.exe" => Some("World of Warcraft"),
+        "minecraftlauncher.exe" => None,
         "r5apex.exe" => Some("Apex Legends"),
         _ => None,
     };
@@ -195,7 +254,12 @@ fn foreground_game() -> Option<TrackedGame> {
             PWSTR(buffer.as_mut_ptr()), &mut len);
         let owned = std::os::windows::io::OwnedHandle::from_raw_handle(process.0);
         result.ok()?;
-        let name = game_name(&String::from_utf16_lossy(&buffer[..len as usize]))?;
+        let path = String::from_utf16_lossy(&buffer[..len as usize]);
+        let exe = path.rsplit(['\\', '/']).next().unwrap_or("").to_ascii_lowercase();
+        let name = registered_games().into_iter()
+            .find(|game| game.executable.eq_ignore_ascii_case(&exe))
+            .map(|game| game.name)
+            .or_else(|| game_name(&path))?;
         // Retain this exact process handle across alt-tab, avoiding PID reuse.
         let started_at_ms = process_started_at_ms(process).unwrap_or_else(||
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64);
