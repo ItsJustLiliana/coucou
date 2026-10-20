@@ -383,6 +383,7 @@ export const Bridge = {
 
   // ── Registered games ──────────────────────────────────────────────────────
   gameListRegistered: () => callOrThrow<{ executable: string; name: string }[]>("game_list_registered"),
+  gameListRunning: () => callOrThrow<{ executable: string; title: string }[]>("game_list_running"),
   gameRegister: (executable: string, name: string) =>
     callOrThrow<{ executable: string; name: string }[]>("game_register", { executable, name }),
   gameUnregister: (executable: string) =>
