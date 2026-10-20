@@ -93,8 +93,6 @@ async fn newer(mine: &str) -> Result<Option<(String, String)>, String> {
         .await
         .map_err(|e| e.to_string())?;
     let body = release.get("body").and_then(|b| b.as_str()).unwrap_or_default();
-    // A different SHA does not imply a newer version. Do not advertise a
-    // release from an unrelated/older fork history as an update.
     Ok(sha_of(body).filter(|theirs| is_other_commit(mine, theirs)).map(|theirs| (theirs, headline_of(body))))
 }
 
