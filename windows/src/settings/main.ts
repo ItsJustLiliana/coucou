@@ -1106,16 +1106,6 @@ function generalSection(): HTMLElement {
         toggle(settings.soundEnabled, v => { settings.soundEnabled = v; void save(); }), volume),
       h("div", { class: "row setting-actions" }, soundsFolder, reloadSounds, customCount,
         info("Replace a sound by placing a file with its sound name in the sounds folder, then reload."))),
-    ...(HOST_OS === "windows" ? [
-      group("Gaming",
-        setting(N_("Game optimization"), N_("Reduce Coucou activity while playing a game."),
-          toggle(settings.gameOptimization, v => {
-            settings.gameOptimization = v;
-            automaticGameOptimization.disabled = !v;
-            void save();
-          })),
-        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization)),
-    ] : []),
     group("Island behavior",
       setting("Open on hover", "Hovering opens the island. It closes after your pointer leaves; click inside to keep it open.",
         toggle(settings.openOnHover, v => { settings.openOnHover = v; void save(); })),
@@ -1128,6 +1118,16 @@ function generalSection(): HTMLElement {
       setting("Island opacity", "Adjust transparency between 50% and 100%.", opacity, opacityValue),
       setting("Launch at startup", "Launch Coucou automatically when signing in.",
         toggle(settings.autostart, v => { settings.autostart = v; void save(); }))),
+    ...(HOST_OS === "windows" ? [
+      group("Gaming",
+        setting(N_("Game optimization"), N_("Reduce Coucou activity while playing a game."),
+          toggle(settings.gameOptimization, v => {
+            settings.gameOptimization = v;
+            automaticGameOptimization.disabled = !v;
+            void save();
+          })),
+        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization)),
+    ] : []),
     group("Mochi & music",
       setting("Dance to the beat", "Mochi follows Spotify's detected beat. Audio is analysed locally, without a microphone.",
         toggle(settings.beatSync, v => { settings.beatSync = v; void save(); })),
