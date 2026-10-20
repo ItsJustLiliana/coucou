@@ -969,6 +969,7 @@ pub fn run() {
             game::pointer_blocked,
             game::game_focus,
             game::game_list_registered,
+            game::game_list_running,
             game::game_register,
             game::game_unregister,
             shortcuts_status,
