@@ -459,7 +459,12 @@ class AppState {
       if (def) t.color = pillColor(def.id, def.color, this.settings.pillColors);
     }
     this.tasks = orderPills(this.tasks, d.mainPill);
-    if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId)) this.focusId = d.mainPill;
+    // When the user changes their main tool, the old main may still be in
+    // tasks briefly because it has a live session. Do not let that stale
+    // focus override the newly selected workspace pill on the island.
+    const focusedTaskExists = this.focusId != null && this.tasks.some((t) => t.id === this.focusId);
+    const focusedTaskIsDeclared = this.focusId === d.mainPill || d.activeIntegrations.includes(this.focusId ?? "");
+    if (!focusedTaskExists || !focusedTaskIsDeclared) this.focusId = d.mainPill;
     this.notify();
   }
 
