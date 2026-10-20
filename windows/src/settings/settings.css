@@ -481,3 +481,8 @@ html[dir="rtl"] :is(.diff, .path, .keycap, input[type="password"], input[type="t
 }
 .gaming-settings .registered-game-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .gaming-settings .registered-game-row button { flex: 0 0 auto; }
+
+/* Running-app chooser: same dimensions and rhythm as the other Notch controls. */
+.gaming-settings .registered-game-picker { gap: 10px; align-items: center; }
+.gaming-settings .registered-game-picker select { flex: 1 1 240px; min-width: 0; max-width: 100%; }
+.gaming-settings .registered-game-picker button { flex: 0 0 auto; }
