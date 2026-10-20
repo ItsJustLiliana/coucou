@@ -64,6 +64,7 @@ pub fn set_paused(on: bool) {
 
 /// Spawns every poller with the macOS delays and intervals.
 pub fn start(app: AppHandle) {
+    crate::game::start(app.clone());
     spawn(app.clone(), "integration_n8n", 3, 15, poll_n8n);
     spawn(app.clone(), "integration_vercel", 5, 30, poll_vercel);
     spawn(app.clone(), "integration_stripe", 6, 30, poll_stripe);
@@ -98,7 +99,7 @@ where
             // integration the user switched off, or a paused app, must make no
             // network calls at all — CLAUDE.md allows talking only to services
             // the user configured, and a disabled one is not configured.
-            if PAUSED.load(Ordering::Relaxed) || !enabled(&app, id) {
+            if PAUSED.load(Ordering::Relaxed) || crate::game::performance_active() || !enabled(&app, id) {
                 continue;
             }
             poll(app.clone()).await;
@@ -109,6 +110,7 @@ where
 /// One-shot refresh from the Refresh buttons in the island.
 pub async fn poll_once(app: AppHandle, id: &str) {
     match id {
+        crate::game::ID => crate::game::sync(&app, true),
         "integration_stripe" => poll_stripe(app).await,
         "integration_github" => {
             wake_github_pulse();
@@ -448,7 +450,7 @@ async fn github_graphql(token: &str, query: &str, what: &str) -> Option<Value> {
 
 /// Returns whether some CI is still running, which sets the next interval.
 async fn run_github_pulse(app: &AppHandle) -> bool {
-    if PAUSED.load(Ordering::Relaxed) || !enabled(app, GITHUB_ID) {
+    if PAUSED.load(Ordering::Relaxed) || crate::game::performance_active() || !enabled(app, GITHUB_ID) {
         return false;
     }
     let Some(token) = secrets::get("github-token") else { return false };
@@ -477,7 +479,7 @@ async fn run_github_pulse(app: &AppHandle) -> bool {
 }
 
 async fn run_github_activity(app: &AppHandle) {
-    if PAUSED.load(Ordering::Relaxed) || !enabled(app, GITHUB_ID) {
+    if PAUSED.load(Ordering::Relaxed) || crate::game::performance_active() || !enabled(app, GITHUB_ID) {
         return;
     }
     let Some(token) = secrets::get("github-token") else { return };
@@ -541,7 +543,7 @@ pub fn github_token_changed(app: &AppHandle) {
     emit_github(app);
     GITHUB.pulse_wake.notify_one();
     GITHUB.activity_wake.notify_one();
-    if has_token && !PAUSED.load(Ordering::Relaxed) && enabled(app, GITHUB_ID) {
+    if has_token && !PAUSED.load(Ordering::Relaxed) && !crate::game::performance_active() && enabled(app, GITHUB_ID) {
         tauri::async_runtime::spawn(poll_github(app.clone()));
     }
 }

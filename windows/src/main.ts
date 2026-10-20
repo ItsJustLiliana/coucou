@@ -1,6 +1,7 @@
 // Entry point: boot the bridge, wire the island, start the greeting.
 
 import "./style.css";
+import { initializePerformance } from "./core/performance";
 import { Bridge, IS_TAURI, onEvent } from "./core/bridge";
 import { feedBeat, type BeatMessage } from "./mochi/beat";
 
@@ -26,6 +27,7 @@ function applyLanguage() {
 }
 
 async function main() {
+  await initializePerformance();
   const root = document.getElementById("root");
   if (!root) return;
 

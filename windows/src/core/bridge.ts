@@ -179,6 +179,9 @@ export interface PhoneAnswersStatus {
 }
 
 export const Bridge = {
+  gameFocus: () => call<boolean>("game_focus"),
+  pointerBlocked: () => call<boolean>("pointer_blocked"),
+  performanceActive: () => call<boolean>("performance_active"),
   boot: () => call<BootInfo>("boot"),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */
   setSystemLanguages: (languages: string[]) => call<void>("set_system_languages", { languages }),
@@ -251,7 +254,7 @@ export const Bridge = {
 
   quit: () => call<void>("quit_app"),
 
-  openSettingsWindow: () => call<void>("open_settings_window"),
+  openSettingsWindow: (page?: string) => call<void>("open_settings_window", page ? { page } : undefined),
 
   /** Writes to %LOCALAPPDATA%\Coucou\coucou.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),

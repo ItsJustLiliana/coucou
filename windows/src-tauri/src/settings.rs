@@ -19,9 +19,15 @@ pub struct Settings {
     /// Hovering the island opens it all the way, and it folds again shortly
     /// after the pointer leaves (the Mac's "Open on hover"). Off by default.
     pub open_on_hover: bool,
-    /// The compact island stays on screen when idle (off: it hides after a minute
+    /// The compact island stays on screen when idle (off: it hides after the chosen delay
     /// and a hover at the top edge brings it back).
     pub keep_visible: bool,
+    /// Seconds before the compact island hides when keep_visible is off.
+    pub compact_hide_delay: f64,
+    /// Automatically reduce Coucou activity while a supported game has focus.
+    pub game_optimization: bool,
+    /// Include detected games running in the background in automatic optimization.
+    pub game_optimization_auto: bool,
     /// Mochi dances on the beat of the music, found by listening to the
     /// speakers' output (beat.rs, Linux). Off by default.
     pub beat_sync: bool,
@@ -149,6 +155,9 @@ impl Default for Settings {
             auto_close_interval: 15.0,
             open_on_hover: false,
             keep_visible: true,
+            compact_hide_delay: 60.0,
+            game_optimization: false,
+            game_optimization_auto: false,
             beat_sync: cfg!(windows),
             beat_output: String::new(),
             island_opacity: 100,
@@ -528,6 +537,9 @@ mod tests {
   "autoCloseInterval": 30.0,
   "openOnHover": true,
   "keepVisible": false,
+  "compactHideDelay": 12.0,
+  "gameOptimization": true,
+  "gameOptimizationAuto": true,
   "beatSync": true,
   "beatOutput": "",
   "islandOpacity": 100,
@@ -1044,6 +1056,9 @@ mod tests {
                 "autoCloseInterval",
                 "openOnHover",
                 "keepVisible",
+                "compactHideDelay",
+                "gameOptimization",
+                "gameOptimizationAuto",
                 "beatSync",
                 "beatOutput",
                 "islandOpacity",

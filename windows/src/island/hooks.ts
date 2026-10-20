@@ -15,6 +15,7 @@ import type { Island } from "./island";
 import { parseClaudePlan, restorePlanUsage } from "../core/plan";
 import { setClaudePlanUsage, storedClaudePlanUsage } from "../views/usage";
 import { N_, t } from "../i18n/i18n";
+import { WaitingRequests } from "../core/waiting-requests";
 
 const CLAUDE_ID = "integration_claude";
 const CURSOR_ID = "agent_cursor";
@@ -54,11 +55,13 @@ interface HookPayload {
   session_id?: string;
   cwd?: string;
   message?: string;
+  notification_type?: string;
   /** UserPromptSubmit carries `prompt`; `message` belongs to Notification/Stop. */
   prompt?: string;
   /** Stop: the turn's final answer (Markdown) — Claude Code's, Hermes's, Codex's. */
   last_assistant_message?: string;
   tool_name?: string;
+  tool_use_id?: string;
   tool_input?: Record<string, unknown>;
   /** Set by the relay when an edit was too big to forward whole (> 256 KB). */
   coucou_diff_truncated?: boolean;
@@ -251,6 +254,9 @@ export function registerHookHandlers(island: Island) {
   // The last plan numbers seen survive a restart, as on the Mac.
   State.planUsage ??= restorePlanUsage(storedClaudePlanUsage());
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+  void onEvent<string>("agent-request-resolved", (id) => {
+    if (WaitingRequests.resolve(id)) State.notify();
+  });
 }
 
 function handleHook(island: Island, payload: HookPayload) {
@@ -262,13 +268,6 @@ function handleHook(island: Island, payload: HookPayload) {
     return;
   }
 
-  if (State.paused) {
-    // Silence here used to cost Claude Code nearly two minutes: the relay waited
-    // for a decision from an island that had already decided not to look. Say so,
-    // and the terminal takes the question immediately.
-    if (payload.request_id) void Bridge.approvalDecline(payload.request_id);
-    return;
-  }
 
   const name = payload.hook_event_name ?? "";
   const cwd = payload.cwd ?? "";
@@ -287,6 +286,17 @@ function handleHook(island: Island, payload: HookPayload) {
   const agentId = validAgent ? `agent_${validAgent}` : workspaceId;
   const isExternalAgent = validAgent !== null;
   const sessionId = payload.session_id ?? "";
+  const previousWaiting = WaitingRequests.count;
+  WaitingRequests.observe(agentId, payload);
+  if (State.paused) {
+    // Silence here used to cost Claude Code nearly two minutes: the relay waited
+    // for a decision from an island that had already decided not to look. Say so,
+    // and the terminal takes the question immediately.
+    if (payload.request_id) void Bridge.approvalDecline(payload.request_id);
+    if (WaitingRequests.count !== previousWaiting) State.notify();
+    return;
+  }
+
 
   /** Alerts force the island open; work events only reveal the compact island. */
   const surface = (view: Parameters<Island["alert"]>[0], isAlert: boolean) => {

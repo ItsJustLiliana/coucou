@@ -1,3 +1,4 @@
+import { initializePerformance, onPerformanceChange, performanceSuspended } from "../core/performance";
 import { responsiveFrame } from "../core/frame-clock";
 // The desktop Mochi's own window (mochi.html): draws him, and turns clicks and
 // drags on him into pokes, flights home, the wardrobe and a new spot. Port of
@@ -51,6 +52,7 @@ class DesktopMochi {
   private lastPointer = -Infinity;
 
   private timer: number | null = null;
+  private cancelFrame: () => void = () => {};
   private lastDraw = 0;
 
   /** Canvas offset inside the window: non-zero only in a layer-shell drag. */
@@ -76,6 +78,11 @@ class DesktopMochi {
   }
 
   async start() {
+    onPerformanceChange((on) => {
+      if (on) { this.cancelFrame(); if (this.timer != null) window.clearTimeout(this.timer); this.timer = null; }
+      if (!on) this.schedule();
+    });
+    await initializePerformance();
     void Sound.preload();
     const info = await Bridge.desktopInfo();
     if (info) this.mode = info.mode;
@@ -136,6 +143,7 @@ class DesktopMochi {
       this.schedule();
       return;
     }
+    this.cancelFrame();
     this.cancelPoke();
     this.press = null;
     this.dragging = false;
@@ -179,7 +187,7 @@ class DesktopMochi {
   // ── Frames ──────────────────────────────────────────────────────────────────
 
   private schedule() {
-    if (this.timer != null || !this.visible) return;
+    if (this.timer != null || !this.visible || performanceSuspended()) return;
     const wait = this.asleep ? ASLEEP_FRAME_MS : AWAKE_FRAME_MS;
     const due = Math.max(0, this.lastDraw + wait - performance.now());
     this.timer = window.setTimeout(() => {
@@ -188,7 +196,7 @@ class DesktopMochi {
         this.timer = null;
         this.frame(performance.now());
       } else {
-        responsiveFrame((t) => {
+        this.cancelFrame = responsiveFrame((t) => {
           this.timer = null;
           this.frame(t);
         });
@@ -197,7 +205,7 @@ class DesktopMochi {
   }
 
   private frame(now: number) {
-    if (!this.visible) return;
+    if (!this.visible || performanceSuspended()) return;
     const dt = Math.min(0.05, Math.max(0, (now - this.lastDraw) / 1000));
     this.lastDraw = now;
     this.updateSleep(now);

@@ -1,3 +1,5 @@
+import { onPerformanceChange, onPointerProtectionChange, pointerInputBlocked, performanceSuspended } from "../core/performance";
+import { focusGame } from "../core/game";
 import { responsiveFrame } from "../core/frame-clock";
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
@@ -54,9 +56,6 @@ const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading"
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
 const modeOrder = (m: IslandMode) => (m === "hidden" ? 0 : m === "compact" ? 1 : 2);
-
-/** A frame loop silent for this long (ms) is stalled: normal frames come every ~16. */
-const STALLED_MS = 80;
 
 export class Island {
   readonly fsm = new IslandStateMachine();
@@ -131,7 +130,15 @@ export class Island {
 
   constructor(root: HTMLElement) {
     this.root = root;
-    window.setInterval(() => this.watchFrames(), STALLED_MS);
+    onPointerProtectionChange((blocked) => {
+      if (!blocked) return;
+      this.botPress = null;
+      this.cancelBotHover();
+      this.botHovering = false;
+      if (this.wasInIsland) this.fsm.mouseLeft();
+      this.wasInIsland = false;
+    });
+    onPerformanceChange((on) => { if (on) this.syncBeat(false); });
     this.desktop = new DesktopLink({
       reveal: () => this.reveal(),
       wardrobeFromDesktop: () => this.wardrobeFromDesktop(),
@@ -205,7 +212,8 @@ export class Island {
           integration_notion: "https://notion.so",
           integration_calcom: "https://app.cal.com/bookings",
         };
-        if (task.id === CLAUDE_DESKTOP_ID) void Bridge.openClaudeDesktop();
+        if (task.id === "integration_game") void focusGame();
+        else if (task.id === CLAUDE_DESKTOP_ID) void Bridge.openClaudeDesktop();
         else if (task.id === "integration_claude" || task.sessionId) {
           void Bridge.openSession(task.sessionId ?? null, task.sessionCwd ?? null, editorOf(task.id));
         } else if (task.id === "integration_n8n") void Bridge.openN8n();
@@ -341,6 +349,7 @@ export class Island {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.openOnHover = State.settings.openOnHover;
     this.fsm.keepVisible = State.settings.keepVisible;
+    this.fsm.petitToHiddenDelay = State.settings.compactHideDelay ?? 60;
     this.fsm.onTransition = (from, to) => {
       // The greeting is over, however it ended: back to his desktop spot.
       if (from === "coucou" && to !== "coucou") this.desktop.launch();
@@ -741,6 +750,7 @@ export class Island {
   private beatRevision = 0;
 
   private syncBeat(wanted: boolean) {
+    wanted = wanted && !performanceSuspended();
     const track = `${Spotify.state.track?.id ?? ""}:${Spotify.beatRevision}`;
     if (wanted === this.beatWanted && (!wanted || track === this.beatTrack)) return;
     const restart = wanted && this.beatWanted;
@@ -792,6 +802,7 @@ export class Island {
   private wireInput() {
     // The wake strip is the only thing the OS can hit while the island is hidden.
     this.wakeStrip.addEventListener("mouseenter", () => {
+      if (pointerInputBlocked()) return;
       Sound.resume();
       if (State.mode === "hidden") this.fsm.mouseEntered();
     });
@@ -894,11 +905,12 @@ export class Island {
   private pointerInside: boolean | null = null;
 
   setPointerInside(inside: boolean) {
-    this.pointerInside = inside;
+    this.pointerInside = pointerInputBlocked() ? false : inside;
   }
 
   /** Cursor in window-logical coordinates. */
   onCursor(x: number, y: number) {
+    if (pointerInputBlocked()) return;
     // WebKitGTK can deliver a mousemove after the pointer has left the layer
     // surface; trusting it re-enters the island and the auto-close never runs.
     if (this.pointerInside === false) {
@@ -1017,21 +1029,7 @@ export class Island {
     if (this.running) return;
     this.running = true;
     this.lastFrame = performance.now();
-    this.cancelFrame = responsiveFrame(this.frame);
-  }
-
-  /**
-   * The web view can hold its animation frames back for a while (a transparent,
-   * non-activating window it thinks nobody sees). The loop then stalls with the
-   * springs half-way — Mochi stuck at the open island's size — and `running`
-   * stays true, so nothing restarts it. A timer notices and steps the loop
-   * itself until frames flow again.
-   */
-  private watchFrames() {
-    if (!this.running || performance.now() - this.lastFrame < STALLED_MS) return;
-    // The non-activating transparent window can have its rAF throttled off-hover.
-    // A queued rAF must not cancel/restart the watchdog frame mid-render.
-    this.frame(performance.now());
+    this.cancelFrame = responsiveFrame(this.frame, 1000 / 60);
   }
 
   /**
@@ -1048,13 +1046,14 @@ export class Island {
         this.loggedErrors.add(message);
         void Bridge.log(`island frame error: ${message}`);
       }
-      this.cancelFrame = responsiveFrame(this.frame);
+      this.cancelFrame = responsiveFrame(this.frame, 1000 / 60);
     }
   };
 
   private loggedErrors = new Set<string>();
 
   private frameBody = (nowMs: number) => {
+    if (performanceSuspended()) return;
     // Apply opacity to the complete island (content, Mochi, borders, shadows).
     // Never dim the transparent window container or its hit-testing region.
     const opacity = Math.max(50, Math.min(100, State.settings.islandOpacity ?? 100)) / 100;
@@ -1119,7 +1118,7 @@ export class Island {
         greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating;
 
     if (busy) {
-      this.cancelFrame = responsiveFrame(this.frame);
+      this.cancelFrame = responsiveFrame(this.frame, 1000 / 60);
     } else {
       this.running = false;
       Sound.idle();
@@ -1319,6 +1318,7 @@ export class Island {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.openOnHover = State.settings.openOnHover;
     this.fsm.keepVisible = State.settings.keepVisible;
+    this.fsm.petitToHiddenDelay = State.settings.compactHideDelay ?? 60;
     State.notify();
   }
 

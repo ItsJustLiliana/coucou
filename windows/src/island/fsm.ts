@@ -22,9 +22,23 @@ export class IslandStateMachine {
     if (this.state === "home" && this.homeCollapse != null) this.scheduleHomeCollapse();
   }
   /** petit → hidden delay, seconds. */
-  petitToHiddenDelay = 60;
+  private compactDelay = 60;
+  get petitToHiddenDelay(): number { return this.compactDelay; }
+  set petitToHiddenDelay(seconds: number) {
+    if (!Number.isFinite(seconds) || seconds < 1 || seconds > 3600 || seconds === this.compactDelay) return;
+    this.compactDelay = seconds;
+    if (this.state === "petit" && this.petitHide != null) this.schedulePetitHide();
+  }
   /** True: the compact island never hides by itself (the wake strip is for the hidden state only). */
-  keepVisible = false;
+  private keepCompact = false;
+  private pointerInside = false;
+  get keepVisible(): boolean { return this.keepCompact; }
+  set keepVisible(on: boolean) {
+    if (on === this.keepCompact) return;
+    this.keepCompact = on;
+    if (on) this.clear("petitHide");
+    else if (this.state === "petit" && !this.pointerInside) this.schedulePetitHide();
+  }
   /** coucou → petit once the greeting animation ends (no hover). */
   greetAutoCollapseDelay = 0.6;
   /** coucou → petit while the mouse hovers the greeting. */
@@ -66,6 +80,7 @@ export class IslandStateMachine {
   }
 
   mouseEntered() {
+    this.pointerInside = true;
     if (this.hoverNeedsExit) return;
     if (this.openOnHover && (this.state === "hidden" || this.state === "petit") && !this.pinned) {
       this.cancelTimers();
@@ -91,6 +106,7 @@ export class IslandStateMachine {
   }
 
   mouseLeft() {
+    this.pointerInside = false;
     this.hoverNeedsExit = false;
     switch (this.state) {
       case "hidden":
@@ -170,7 +186,7 @@ export class IslandStateMachine {
     if (this.pinned || this.keepVisible) return;
     this.petitHide = window.setTimeout(() => {
       this.petitHide = null;
-      if (this.state === "petit" && !this.pinned) this.transition("hidden");
+      if (this.state === "petit" && !this.pinned && !this.keepVisible && !this.pointerInside) this.transition("hidden");
     }, this.petitToHiddenDelay * 1000);
   }
 

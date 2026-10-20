@@ -5,6 +5,7 @@
 // A file of the user's own in the sounds folder (src-tauri/src/sounds.rs)
 // replaces a sound; one that doesn't decode falls back to the built-in one.
 
+import { onPerformanceChange, performanceSuspended } from "./performance";
 import { Bridge } from "./bridge";
 
 export const SOUND_NAMES = [
@@ -17,6 +18,17 @@ export const SOUND_NAMES = [
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 class SoundEngine {
+  constructor() {
+    onPerformanceChange((on) => {
+      if (!on) return;
+      for (const voices of this.playing.values()) {
+        for (const { src } of voices) { try { src.stop(); } catch { /* already stopped */ } }
+      }
+      this.playing.clear();
+      void this.ctx?.suspend();
+    });
+  }
+
   enabled = true;
   volume = 0.12;
 
@@ -43,6 +55,7 @@ class SoundEngine {
       master.connect(ctx.destination);
       this.master = master;
       await this.loadAll(ctx);
+      void ctx.suspend();
     })();
     return this.loading;
   }
@@ -85,6 +98,7 @@ class SoundEngine {
 
   /** WebView2 can hand us a suspended context; call after any user input. */
   resume() {
+    if (performanceSuspended()) return;
     if (this.idleTimer != null) {
       window.clearTimeout(this.idleTimer);
       this.idleTimer = null;
@@ -118,7 +132,7 @@ class SoundEngine {
   }
 
   play(name: SoundName | string) {
-    if (!this.enabled) return;
+    if (!this.enabled || performanceSuspended()) return;
     const ctx = this.ctx;
     const master = this.master;
     const buf = this.buffers.get(name);

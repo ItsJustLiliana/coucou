@@ -433,6 +433,7 @@ fn from_island_client(app: &AppHandle, d: &Desktop, x: f64, y: f64) -> Option<(f
 fn place(app: &AppHandle, d: &Desktop, pos: (f64, f64)) {
     d.inner.lock().unwrap().pos = pos;
     let Some(win) = window(app) else { return };
+    let pos = if crate::game::performance_active() { PARKED } else { pos };
     match d.mode {
         DesktopMode::Poll | DesktopMode::Window => {
             let _ = win.set_position(PhysicalPosition::new(pos.0.round() as i32, pos.1.round() as i32));
@@ -512,7 +513,7 @@ fn refresh(app: &AppHandle, d: &Desktop) {
         DesktopMode::Poll => {
             if let Some(flag) = ignore {
                 d.inner.lock().unwrap().ignoring = Some(flag);
-                let _ = win.set_ignore_cursor_events(flag);
+                let _ = win.set_ignore_cursor_events(flag || crate::game::pointer_blocked());
             }
             d.gate.set_active(active);
         }
@@ -626,13 +627,39 @@ async fn finish_drop(app: &AppHandle, d: &Desktop, pos: (f64, f64), from: Source
 
 /// Runs only while he is awake on the desktop or being carried: click-through
 /// from the body hit test, the cursor for his eyes, and the drag.
+pub fn pointer_protection_changed(app: &AppHandle, blocked: bool) {
+    let Some(d) = app.try_state::<Arc<Desktop>>() else { return };
+    d.inner.lock().unwrap().ignoring = None;
+    refresh(app, &d);
+    if blocked {
+        d.inner.lock().unwrap().ignoring = Some(true);
+        if let Some(win) = window(app) { let _ = win.set_ignore_cursor_events(true); }
+    }
+}
+
+pub fn performance_changed(app: &AppHandle, on: bool) {
+    let Some(d) = app.try_state::<Arc<Desktop>>() else { return };
+    d.gate.set_suspended(on);
+    let pos = d.inner.lock().unwrap().pos;
+    place(app, &d, pos);
+}
+
 fn spawn_poll(app: AppHandle, d: Arc<Desktop>) {
     std::thread::spawn(move || loop {
         d.gate.wait_until_active();
         let mut last = (f64::MIN, f64::MIN);
         while d.gate.is_active() {
             std::thread::sleep(Duration::from_millis(TICK_MS));
+            if !d.gate.is_active() { break; }
             let Some(win) = window(&app) else { continue };
+            if crate::game::pointer_blocked() {
+                let mut inner = d.inner.lock().unwrap();
+                if inner.ignoring != Some(true) {
+                    inner.ignoring = Some(true);
+                    let _ = win.set_ignore_cursor_events(true);
+                }
+                continue;
+            }
             let Some((cx, cy)) = platform::cursor_physical() else { continue };
             let carry = d.inner.lock().unwrap().carry;
 

@@ -13,6 +13,8 @@ import { refreshHookPills } from "../island/integrations";
 import { readActivity, readPulse, readStats } from "../core/github";
 import { githubDetail, githubPulseCard } from "./github";
 import { N_, language, t } from "../i18n/i18n";
+import { gameSessionTime } from "../core/game";
+import { WaitingRequests } from "../core/waiting-requests";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
 export function timeAgo(value: unknown): string {
@@ -455,6 +457,22 @@ export function hasIntegrationData(id: string): boolean {
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
+  if (task.id === "integration_game") {
+    const data = get(task.id);
+    const playing = data.playing === true && typeof data.name === "string";
+    const elapsed = gameSessionTime(data);
+    return h("div", { class: "int-card game-card" },
+      header(task.color, "Game", t("Integration")),
+      h("div", { class: "int-row first", title: playing ? String(data.name) : undefined, text: playing ? String(data.name) : t("No game currently open") }),
+      ...(playing ? [
+        ...(elapsed !== null ? [h("div", { class: "game-meta", text: t("Session time: {time}", { time: elapsed }) })] : []),
+        h("div", { class: "game-meta", "aria-live": "polite", text: t("Waiting requests: {count}", { count: WaitingRequests.count }) }),
+      ] : []),
+      ...(playing && !State.settings.gameOptimization ? [h("button", {
+        type: "button", class: "btn secondary game-optimization", text: t("Optimalisation"), onclick: () => void Bridge.openSettingsWindow("general"),
+      })] : []),
+      ...(State.integrations[task.id]?.error ? [h("div", { class: "hint", style: "color:#F4505E", role: "alert", text: t("Sorry this action failed") })] : []));
+  }
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");
     return hooks.detailOpen && hasActivity

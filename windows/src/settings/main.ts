@@ -3,6 +3,9 @@
 // disk is confirmed. The window's frame and the Flow pages live in ../hub; the
 // island's settings are drawn here, one Notch page at a time.
 
+import { initializePerformance } from "../core/performance";
+void initializePerformance(true);
+
 import "./settings.css";
 import { Bridge, onEvent, type HookPreview, type HookStatus, type ShortcutsReport } from "../core/bridge";
 import { CUSTOM_SERVER_KEY, providerDef, urlExposure } from "../core/providers";
@@ -857,6 +860,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
   // Nothing to enter: read over D-Bus on Linux, from the system media controls on Windows (see core/pills.ts).
+  { id: "integration_game", name: "Game", color: "#A78BFA", fields: [] },
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", fields: [] },
   { id: "agent_notifications", name: "Notification", color: "#5AC8FA", fields: [] },
 ];
@@ -1011,6 +1015,20 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const compactDelay = h("input", {
+    type: "number", min: "1", max: "3600", step: "1",
+    value: String(Math.round(settings.compactHideDelay ?? 60)), style: "width:72px",
+    "aria-label": t("Hide small island after"),
+  }) as HTMLInputElement;
+  compactDelay.disabled = settings.keepVisible;
+  compactDelay.addEventListener("change", () => {
+    const value = Number(compactDelay.value);
+    settings.compactHideDelay = Number.isFinite(value) && compactDelay.value.trim() !== ""
+      ? Math.max(1, Math.min(3600, Math.round(value))) : 60;
+    compactDelay.value = String(settings.compactHideDelay);
+    void save();
+  });
+
   const screen = h("select", {}) as HTMLSelectElement;
   screen.append(
     h("option", { value: "primary", text: t("Main display") }),
@@ -1058,6 +1076,12 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const automaticGameOptimization = toggle(settings.gameOptimizationAuto, v => {
+    settings.gameOptimizationAuto = v;
+    void save();
+  }) as HTMLButtonElement;
+  automaticGameOptimization.disabled = !settings.gameOptimization;
+
   const group = (name: string, ...children: HTMLElement[]) =>
     h("section", { class: "general-group" }, h("h2", { text: t(name) }), ...children);
   const info = (description: string) => h("span", {
@@ -1075,10 +1099,20 @@ function generalSection(): HTMLElement {
       h("div", { class: "row setting-actions" }, soundsFolder, reloadSounds, customCount,
         info("Replace a sound by placing a file with its sound name in the sounds folder, then reload."))),
     group("Island behavior",
+      ...(HOST_OS === "windows" ? [
+        setting(N_("Game optimization"), N_("Reduce Coucou activity while playing a game."),
+          toggle(settings.gameOptimization, v => {
+            settings.gameOptimization = v;
+            automaticGameOptimization.disabled = !v;
+            void save();
+          })),
+        setting(N_("Automatically turn on when a game is open"), N_("Keep optimization active while a detected game is open, including in the background."), automaticGameOptimization),
+      ] : []),
       setting("Open on hover", "Hovering opens the island. It closes after your pointer leaves; click inside to keep it open.",
         toggle(settings.openOnHover, v => { settings.openOnHover = v; void save(); })),
-      setting("Keep Mochi on screen", "When disabled, the island hides after one minute of inactivity.",
-        toggle(settings.keepVisible, v => { settings.keepVisible = v; void save(); })),
+      setting("Keep Mochi on screen", N_("When disabled, the small island hides after the chosen delay."),
+        toggle(settings.keepVisible, v => { settings.keepVisible = v; compactDelay.disabled = v; void save(); })),
+      setting(N_("Hide small island after"), N_("Seconds after the pointer leaves before the small island hides."), compactDelay, h("span", { class: "hint", text: t("seconds") })),
       setting("Auto-close", "Seconds before the island closes after your pointer leaves.", autoClose, h("span", { class: "hint", text: t("seconds") })),
       setting("Island lives on", "Choose the display where the island appears.", screen),
       setting("Island position", "Choose where the island sits on the selected display.", align),

@@ -17,6 +17,7 @@ export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
   void onEvent<GitHubEvent[]>("github-alerts", handleGitHubAlerts);
   void refreshConfigured();
+  void Bridge.refreshIntegration("integration_game");
   State.subscribe(refreshGitHubWhenShown);
 }
 

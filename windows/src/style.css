@@ -1641,6 +1641,41 @@ input[type="range"]::-webkit-slider-thumb {
   padding-top: 6px;
 }
 
+.game-card {
+  padding-top: 7px;
+}
+
+.game-card .game-meta {
+  padding-top: 2px;
+  font: 400 11px/13px var(--font);
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-card > .int-row.first {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 0;
+  font: 500 13px/16px var(--font);
+}
+
+.game-card .game-optimization {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 3px 10px;
+  font: 500 11px/14px var(--font);
+}
+
+.game-card [role="alert"] {
+  position: absolute;
+  left: 108px;
+  right: 12px;
+  bottom: 1px;
+  font: 400 10px/10px var(--font);
+}
+
 .int-rows {
   display: flex;
   flex-direction: column;

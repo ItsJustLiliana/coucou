@@ -28,6 +28,9 @@ import { buildPillPages } from "./pill-pages";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
 import type { ViewCommand } from "../island/shortcuts";
+import { gameSessionMinutes, nextGameMinuteDelay } from "../core/game";
+import { WaitingRequests } from "../core/waiting-requests";
+import { onPerformanceChange, performanceSuspended } from "../core/performance";
 
 export interface ViewActions {
   setView(v: IslandViewName): void;
@@ -229,9 +232,24 @@ function buildOverview(actions: ViewActions): ViewHost {
   let cardKey = "";
   /** The list row highlighted at the last sync, to scroll only when it moves. */
   let shownSelection: number | null = null;
+  let gameTimer: number | null = null;
+
+  // One wake at the next displayed minute, only while the Game card is visible.
+  function syncGameTimer() {
+    if (gameTimer !== null) window.clearTimeout(gameTimer);
+    gameTimer = null;
+    if (State.focusTask?.id !== "integration_game" || State.view !== "overview" || State.mode !== "expanded" || performanceSuspended() || planCardOpen() || activeDiffId !== null || sessionDetailOpen) return;
+    const delay = nextGameMinuteDelay(State.integrations.integration_game?.data ?? {});
+    if (delay !== null) gameTimer = window.setTimeout(() => { gameTimer = null; State.notify(); }, delay);
+  }
+  onPerformanceChange((on) => {
+    syncGameTimer();
+    if (!on && State.focusTask?.id === "integration_game") State.notify();
+  });
 
   // Leaving the overview or folding the island closes the diff, as on macOS.
   State.subscribe(() => {
+    syncGameTimer();
     if (State.view !== "overview" || State.mode !== "expanded") sessionDetailOpen = false;
     if (activeDiffId != null && (State.view !== "overview" || State.mode !== "expanded")) {
       activeDiffId = null;
@@ -411,6 +429,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         const key = [
           language(), task.id, task.color, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
+          task.id === "integration_game" ? State.settings.gameOptimization : "",
+          task.id === "integration_game" ? `${gameSessionMinutes(info?.data ?? {})}:${WaitingRequests.count}` : "",
           JSON.stringify(info?.data ?? {}),
         ].join("~");
         if (key !== cardKey) {
@@ -421,7 +441,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
-      jump.style.display = detailOpen || sessionDetailOpen || mode === "plan" || mode === "diff" ? "none" : "";
+      jump.style.display = (task?.id === "integration_game" && State.integrations[task.id]?.data.playing !== true) || detailOpen || sessionDetailOpen || mode === "plan" || mode === "diff" ? "none" : "";
 
       // Ctrl+↓ Ctrl+↑ walk the open GitHub list (cardItemCount / cardSelection).
       const rows = mode === "card" ? listRows(leftBody) : [];

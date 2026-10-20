@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { calls, emit, sent } from "./tauri.mjs";
 import { registerHookHandlers } from "../src/island/hooks.ts";
 import { DEFAULT_SETTINGS, State } from "../src/core/state.ts";
+import { WaitingRequests } from "../src/core/waiting-requests.ts";
 
 const CLAUDE = "integration_claude";
 
@@ -64,6 +65,7 @@ test("Codex patches, exact shell steps and plans reach both the pill and phone s
 });
 
 beforeEach(() => {
+  WaitingRequests.clear();
   mock.timers.enable({ apis: ["setTimeout"] });
   asked = [];
   calls.length = 0;
@@ -131,7 +133,7 @@ test("a work event leaves an island that is already showing where it is", () => 
 test("a submitted prompt shows as thinking, with the prompt as the step", () => {
   hook({ hook_event_name: "UserPromptSubmit", cwd: "/p", prompt: "x".repeat(80) });
   assert.equal(task().state, "thinking");
-  assert.deepEqual(task().steps, ["x".repeat(60)]);
+  assert.deepEqual(task().steps, ["x".repeat(80)]);
   hook({ hook_event_name: "UserPromptSubmit", cwd: "/p", message: "older field" });
   assert.equal(task().steps.at(-1), "older field");
 });
@@ -786,7 +788,7 @@ test("a notification never covers a card waiting for an answer", () => {
   State.settings.showNotifications = true;
   State.setFocus(CLAUDE);
   State.pendingApproval = { requestId: "r", sessionId: "", pillId: CLAUDE, tool: "Bash", command: "ls" };
-  notice({ app: "Discord", summary: "Anna", body: "hey!" });
+  notice({ app: "Discord", summary: "Anna", body: "A new message while approval is waiting" });
   assert.equal(State.focusId, CLAUDE);
   assert.equal(task("agent_notifications").pillBadge, "finished");
 });

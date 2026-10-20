@@ -207,7 +207,7 @@ fn now_ms() -> f64 {
 #[tauri::command]
 pub fn beat_enable(app: AppHandle, shared: State<'_, crate::Shared>, listener: State<'_, Listener>, on: bool) -> bool {
     let config = shared.settings.lock().unwrap().clone();
-    let allowed = config.beat_sync;
+    let allowed = config.beat_sync && !crate::game::performance_active();
     let mut slot = listener.run.lock().unwrap();
     if !(on && allowed) {
         if let Some(running) = slot.take() {
@@ -296,7 +296,7 @@ pub fn beat_enable(_on: bool) -> bool {
 #[tauri::command]
 pub fn beat_enable(app: AppHandle, shared: State<'_, crate::Shared>, listener: State<'_, Listener>, on: bool) -> bool {
     let config = shared.settings.lock().unwrap().clone();
-    let allowed = config.beat_sync;
+    let allowed = config.beat_sync && !crate::game::performance_active();
     let mut slot = listener.run.lock().unwrap();
     if !(on && allowed) {
         // Join the old analysis before resetting both renderer clocks.
@@ -599,5 +599,14 @@ mod live {
                 eprintln!("bpm {:.1} conf {:.1} last beat {:.3}s ago", b.bpm, b.confidence, b.last_beat_ago);
             }
         }
+    }
+}
+
+/// Stop audio capture and beat analysis before yielding to the game.
+#[cfg(windows)]
+pub fn performance_suspend(app: &AppHandle) {
+    use tauri::Manager;
+    if let Some(listener) = app.try_state::<Listener>() {
+        listener.run.lock().unwrap().take();
     }
 }

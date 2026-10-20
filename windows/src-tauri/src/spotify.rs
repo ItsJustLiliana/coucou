@@ -833,7 +833,7 @@ mod win {
                 let mut sent: Option<PlayerState> = None;
                 while ON.load(Ordering::Relaxed) {
                     let paused = crate::integrations::PAUSED.load(Ordering::Relaxed);
-                    if !paused {
+                    if !paused && !crate::game::performance_active() {
                         let track_changed = |old: &Option<PlayerState>, new: &PlayerState| {
                             old.as_ref().and_then(|o| o.track.as_ref().map(|t| t.id.clone()))
                                 != new.track.as_ref().map(|t| t.id.clone())

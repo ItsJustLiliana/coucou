@@ -18,6 +18,52 @@ afterEach(() => mock.timers.reset());
 
 const seconds = (n) => mock.timers.tick(n * 1000);
 
+test("the small island uses the selected hide delay and applies edits immediately", () => {
+  fsm.petitToHiddenDelay = 10;
+  fsm.reveal();
+  seconds(8);
+  assert.equal(fsm.state, "petit");
+  fsm.petitToHiddenDelay = 3;
+  seconds(2);
+  assert.equal(fsm.state, "petit", "the old ten-second deadline must be cancelled");
+  seconds(1);
+  assert.equal(fsm.state, "hidden");
+});
+
+test("keep visible overrides the selected delay and switching it off starts hiding", () => {
+  fsm.keepVisible = true;
+  fsm.petitToHiddenDelay = 2;
+  fsm.reveal();
+  seconds(100);
+  assert.equal(fsm.state, "petit");
+  fsm.keepVisible = false;
+  seconds(1);
+  assert.equal(fsm.state, "petit");
+  seconds(1);
+  assert.equal(fsm.state, "hidden");
+});
+
+test("changing the small-island delay while hovered starts no hide countdown", () => {
+  fsm.mouseEntered();
+  fsm.petitToHiddenDelay = 1;
+  seconds(100);
+  assert.equal(fsm.state, "petit");
+  fsm.mouseLeft();
+  seconds(1);
+  assert.equal(fsm.state, "hidden");
+});
+
+test("invalid compact delays are ignored and a newly enabled keep-visible cancels hiding", () => {
+  fsm.petitToHiddenDelay = 5;
+  for (const value of [0, -1, NaN, Infinity, 3601]) fsm.petitToHiddenDelay = value;
+  assert.equal(fsm.petitToHiddenDelay, 5);
+  fsm.reveal();
+  seconds(4);
+  fsm.keepVisible = true;
+  seconds(100);
+  assert.equal(fsm.state, "petit");
+});
+
 test("starts hidden and opens on the greeting at launch", () => {
   assert.equal(fsm.state, "hidden");
   fsm.launch();

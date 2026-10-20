@@ -7,15 +7,16 @@
 // One animation loop draws every live canvas; it stops when none is on screen
 // or the window is hidden, so a hidden window costs nothing.
 
+import { responsiveFrame } from "../core/frame-clock";
+import { onPerformanceChange, performanceSuspended } from "../core/performance";
 import { BotEngine, hexToRGB } from "../mochi/engine";
 import type { BotEmoteName, BotStateName } from "../core/layout";
 import type { Outfit } from "../mochi/wardrobe";
 import { HOST_OS } from "../core/pills";
 
-// WebKitGTK draws these canvases in software: on Linux the loop runs at about
-// 30 frames a second and at one pixel per CSS pixel (Windows keeps the full rate).
+// Decorative canvases run at no more than 30 fps. Linux uses one pixel per CSS pixel.
 const LINUX = HOST_OS === "linux";
-const MIN_FRAME_MS = LINUX ? 33 : 0;
+const MIN_FRAME_MS = 33;
 
 interface Animated {
   el: HTMLCanvasElement;
@@ -26,20 +27,18 @@ interface Animated {
 }
 
 const live = new Set<Animated>();
-let frame: number | null = null;
+let frame: (() => void) | null = null;
 let last = performance.now();
 const start = performance.now();
 
 /** The next frame: at once, or after a pause that keeps a software canvas from eating the CPU. */
-function next(): number {
-  if (!MIN_FRAME_MS) return requestAnimationFrame(loop);
-  return window.setTimeout(() => {
-    frame = requestAnimationFrame(loop);
-  }, MIN_FRAME_MS);
+function next(): () => void {
+  return responsiveFrame(loop, MIN_FRAME_MS);
 }
 
 function loop(now: number) {
   frame = null;
+  if (performanceSuspended() || document.visibilityState !== "visible") return;
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const t = (now - start) / 1000;
@@ -56,13 +55,20 @@ function loop(now: number) {
 }
 
 function wake() {
-  if (frame === null && live.size > 0 && document.visibilityState === "visible") {
+  if (!performanceSuspended() && frame === null && live.size > 0 && document.visibilityState === "visible") {
     last = performance.now();
-    frame = requestAnimationFrame(loop);
+    frame = next();
   }
 }
 
-document.addEventListener("visibilitychange", wake);
+function stop() {
+  frame?.();
+  frame = null;
+}
+onPerformanceChange((on) => { if (on) stop(); else wake(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") stop(); else wake();
+});
 
 function add(a: Animated) {
   live.add(a);

@@ -45,6 +45,7 @@ test("the catalog holds the Mac's pills with the Claude Code label for Windows a
     ["integration_calcom", "Cal.com", "#C9956A", "service", "Integration"],
     ["integration_stripe", "Stripe", "#0570DE", "service", "Integration"],
     ["integration_music", "Apple Music", "#FA2D48", "service", "Integration"],
+    ["integration_game", "Game", "#A78BFA", "service", "Integration"],
     ["integration_spotify", "Spotify", "#1DB954", "service", "Integration"],
     ["agent_notifications", "Notification", "#5AC8FA", "service", "Integration"],
   ];
@@ -98,7 +99,7 @@ test("this build leaves out what only macOS has and Claude Desktop on Linux", ()
   // The media pill is read over MPRIS on Linux and from the system media controls on Windows.
   assert.ok(linux.includes("integration_spotify"));
   assert.ok(windows.includes("integration_spotify"));
-  assert.deepEqual(linux, windows.filter((id) => id !== "agent_claude-desktop"));
+  assert.deepEqual(linux, windows.filter((id) => !["agent_claude-desktop", "integration_game"].includes(id)));
 });
 
 test("Spotify: a service with nothing to set up, on both systems", () => {

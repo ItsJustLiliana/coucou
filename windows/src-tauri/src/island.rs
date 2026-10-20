@@ -69,6 +69,7 @@ pub struct IslandRect {
 /// Wakes / parks the cursor poll thread so a hidden island costs literally nothing.
 pub struct PollGate {
     active: Mutex<bool>,
+    suspended: AtomicBool,
     cv: Condvar,
     pub collapsed: AtomicBool,
     pub rect: Mutex<IslandRect>,
@@ -80,6 +81,7 @@ impl PollGate {
     pub fn new() -> Self {
         Self {
             active: Mutex::new(false),
+            suspended: AtomicBool::new(false),
             cv: Condvar::new(),
             collapsed: AtomicBool::new(true),
             rect: Mutex::new(IslandRect::default()),
@@ -102,15 +104,21 @@ impl PollGate {
         self.cv.notify_all();
     }
 
+    pub fn set_suspended(&self, on: bool) {
+        let _guard = self.active.lock().unwrap();
+        self.suspended.store(on, Ordering::Relaxed);
+        self.cv.notify_all();
+    }
+
     pub(crate) fn wait_until_active(&self) {
         let mut guard = self.active.lock().unwrap();
-        while !*guard {
+        while !*guard || self.suspended.load(Ordering::Relaxed) {
             guard = self.cv.wait(guard).unwrap();
         }
     }
 
     pub(crate) fn is_active(&self) -> bool {
-        *self.active.lock().unwrap()
+        *self.active.lock().unwrap() && !self.suspended.load(Ordering::Relaxed)
     }
 }
 
@@ -384,6 +392,10 @@ fn x_for(align: &str, left: i32, width: i32, pw: i32, margin: i32) -> i32 {
 pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     if DRAGGING.load(Ordering::Relaxed) { return; }
     let Some(win) = window(app) else { return };
+    if crate::game::performance_active() {
+        let _ = win.set_position(PhysicalPosition::new(-32000, -32000));
+        return;
+    }
     let Some(m) = target_monitor(app, pref) else { return };
 
     let scale = m.scale_factor();
@@ -469,6 +481,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             let mut ticks: u32 = 0;
             while gate.is_active() {
                 std::thread::sleep(Duration::from_millis(period));
+                if !gate.is_active() { break; }
 
                 // Monitors get plugged in, unplugged, rearranged and rescaled, and
                 // an island pinned to coordinates that no longer exist is an island
@@ -488,6 +501,10 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 }
 
                 let Some(win) = window(&app) else { continue };
+                if crate::game::pointer_blocked() {
+                    if !gate.ignoring.swap(true, Ordering::Relaxed) { let _ = win.set_ignore_cursor_events(true); }
+                    continue;
+                }
                 let Ok(origin) = win.outer_position() else { continue };
                 let scale = win.scale_factor().unwrap_or(1.0);
                 let Some((cx, cy)) = cursor_physical() else { continue };
@@ -553,7 +570,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 /// the island itself, or to the whole wake strip while collapsed.
 pub fn refresh_click_through(app: &AppHandle, gate: &PollGate) {
     if platform::CURSOR_POLL {
-        set_ignore_cursor(app, false);
+        set_ignore_cursor(app, crate::game::pointer_blocked());
         gate.forget_ignore_state();
         return;
     }
@@ -581,7 +598,7 @@ pub fn refresh_click_through(app: &AppHandle, gate: &PollGate) {
 
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
     if let Some(win) = window(app) {
-        let _ = win.set_ignore_cursor_events(ignore);
+        let _ = win.set_ignore_cursor_events(ignore || crate::game::pointer_blocked());
     }
 }
 
@@ -664,5 +681,35 @@ mod custom_position_tests {
     fn dragging_near_an_edge_never_loses_the_visible_island() {
         assert_eq!(custom_origin([0.0, 1.0], 0, 0, 1920, 720), (0, 0));
         assert_eq!(custom_origin([1.0, -0.5], 0, 0, 1920, 720), (1200, 0));
+    }
+}
+
+#[cfg(test)]
+mod poll_gate_tests {
+    use super::*;
+
+    #[test]
+    fn game_suspend_preserves_requested_activity_and_parks_the_worker() {
+        let gate = Arc::new(PollGate::new());
+        gate.set_active(true);
+        gate.set_suspended(true);
+        assert!(!gate.is_active());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let worker_gate = gate.clone();
+        let worker = std::thread::spawn(move || {
+            worker_gate.wait_until_active();
+            tx.send(()).unwrap();
+        });
+        // State updates during gameplay must not wake the cursor loop.
+        gate.set_active(true);
+        assert!(rx.recv_timeout(Duration::from_millis(30)).is_err());
+        gate.set_suspended(false);
+        rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        worker.join().unwrap();
+        assert!(gate.is_active());
+        gate.set_active(false);
+        gate.set_suspended(true);
+        gate.set_suspended(false);
+        assert!(!gate.is_active(), "a hidden island must remain parked after alt-tab");
     }
 }

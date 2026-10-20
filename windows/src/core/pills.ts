@@ -136,6 +136,8 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
   // Any media player's MPRIS interface on the session bus (src-tauri/src/spotify.rs):
   // Spotify, a browser, VLC… The id stays the one it always had.
   // On Windows it is read from the system media controls (the same file).
+  { id: "integration_game", name: "Game", color: "#A78BFA", category: "service",
+    subtitle: N_("Integration"), source: "n8n", support: "windows", connect: none },
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", category: "service",
     subtitle: N_("Integration"), source: "n8n", support: "yes", connect: none },
   { id: "agent_notifications", name: "Notification", color: "#5AC8FA", category: "service",

@@ -106,8 +106,14 @@ export interface Settings {
   autoCloseInterval: number;
   /** Hovering the island opens it all the way (off: hovering only peeks). */
   openOnHover: boolean;
-  /** The compact island stays on screen when idle instead of hiding after a minute. */
+  /** The compact island stays on screen instead of hiding after the chosen delay. */
   keepVisible: boolean;
+  /** Seconds before the compact island hides after the pointer leaves. */
+  compactHideDelay: number;
+  /** Automatic game optimization, independent of the visual Game pill. */
+  gameOptimization: boolean;
+  /** Keep optimization active while a detected game runs in the background. */
+  gameOptimizationAuto: boolean;
   /** Mochi dances on the beat of the music (Linux; listens to the speakers' output). */
   beatSync: boolean;
   /** Output used for Spotify beat analysis; empty follows the default device. */
@@ -190,6 +196,9 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCloseInterval: 15,
   openOnHover: false,
   keepVisible: true,
+  compactHideDelay: 60,
+  gameOptimization: false,
+  gameOptimizationAuto: false,
   beatSync: HOST_OS === "windows",
   beatOutput: "",
   islandOpacity: 100,
