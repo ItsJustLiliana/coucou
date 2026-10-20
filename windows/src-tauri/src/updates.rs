@@ -93,7 +93,21 @@ async fn newer(mine: &str) -> Result<Option<(String, String)>, String> {
         .await
         .map_err(|e| e.to_string())?;
     let body = release.get("body").and_then(|b| b.as_str()).unwrap_or_default();
-    Ok(sha_of(body).filter(|theirs| is_other_commit(mine, theirs)).map(|theirs| (theirs, headline_of(body))))
+    let Some(theirs) = sha_of(body).filter(|theirs| is_other_commit(mine, theirs)) else {
+        return Ok(None);
+    };
+    // SHA inequality does not imply a newer release. Only advertise releases
+    // GitHub confirms are ahead in the same repository's commit history.
+    let compare_url = format!(
+        "https://api.github.com/repos/CaptainPancakeWithBacon/coucou/compare/{mine}...{theirs}"
+    );
+    let comparison: serde_json::Value = client.get(compare_url)
+        .header("Accept", "application/vnd.github+json")
+        .send().await.and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?
+        .json().await.map_err(|e| e.to_string())?;
+    let ahead = comparison.get("status").and_then(|v| v.as_str()) == Some("ahead");
+    Ok(ahead.then(|| (theirs, headline_of(body))))
 }
 
 fn announce_update(app: &AppHandle, headline: String) {
