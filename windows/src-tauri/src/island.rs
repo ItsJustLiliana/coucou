@@ -501,9 +501,11 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 }
 
                 let Some(win) = window(&app) else { continue };
-                if crate::game::pointer_blocked() {
-                    if !gate.ignoring.swap(true, Ordering::Relaxed) { let _ = win.set_ignore_cursor_events(true); }
-                    continue;
+                // Never intercept game clicks, but keep reporting the actual
+                // cursor position so Mochi can still follow its motion.
+                let pointer_blocked = crate::game::pointer_blocked();
+                if pointer_blocked && !gate.ignoring.swap(true, Ordering::Relaxed) {
+                    let _ = win.set_ignore_cursor_events(true);
                 }
                 let Ok(origin) = win.outer_position() else { continue };
                 let scale = win.scale_factor().unwrap_or(1.0);
@@ -552,7 +554,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     && y <= size.1;
 
                 let accept = on_island || dragging;
-                if gate.ignoring.load(Ordering::Relaxed) == accept {
+                if !pointer_blocked && gate.ignoring.load(Ordering::Relaxed) == accept {
                     gate.ignoring.store(!accept, Ordering::Relaxed);
                     let _ = win.set_ignore_cursor_events(!accept);
                 }

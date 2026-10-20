@@ -138,7 +138,15 @@ export class Island {
       if (this.wasInIsland) this.fsm.mouseLeft();
       this.wasInIsland = false;
     });
-    onPerformanceChange((on) => { if (on) this.syncBeat(false); });
+    onPerformanceChange((on) => {
+      if (on) {
+        this.syncBeat(false);
+      } else {
+        // A suspended frame must not leave Mochi's animation loop dormant.
+        this.lastFrame = performance.now();
+        this.ensureRunning();
+      }
+    });
     this.desktop = new DesktopLink({
       reveal: () => this.reveal(),
       wardrobeFromDesktop: () => this.wardrobeFromDesktop(),
@@ -153,6 +161,11 @@ export class Island {
       this.onGreetingDone?.();
     };
     State.subscribe(() => {
+      // Agent updates must not repeatedly hide and reveal the compact island.
+      // The user's Keep Mochi on screen preference still takes precedence.
+      const agentActive = State.tasks.some((task) =>
+        ["thinking", "working", "ratelimit", "question", "approval"].includes(task.state));
+      this.fsm.keepVisible = State.settings.keepVisible || agentActive;
       this.dirty = true;
       this.ensureRunning();
     });
@@ -910,7 +923,7 @@ export class Island {
 
   /** Cursor in window-logical coordinates. */
   onCursor(x: number, y: number) {
-    if (pointerInputBlocked()) return;
+    const inputBlocked = pointerInputBlocked();
     // WebKitGTK can deliver a mousemove after the pointer has left the layer
     // surface; trusting it re-enters the island and the auto-close never runs.
     if (this.pointerInside === false) {
@@ -920,6 +933,16 @@ export class Island {
     State.mouse = { x, y };
     const rect = this.islandRect();
     State.mouseInIsland = { x: x - rect.x, y: y - rect.y };
+    // Track the cursor for Mochi even when an FPS game owns the crosshair.
+    // Only interactions and hover transitions are blocked, not visual tracking.
+    if (inputBlocked) {
+      if (this.wasInIsland) this.fsm.mouseLeft();
+      this.wasInIsland = false;
+      this.cancelBotHover();
+      this.botHovering = false;
+      this.ensureRunning();
+      return;
+    }
 
     // Windows sends no cursor position with an OLE drag, so the drop sequence is
     // fed from the Win32 cursor poll instead — it runs throughout the drag.
@@ -1053,7 +1076,10 @@ export class Island {
   private loggedErrors = new Set<string>();
 
   private frameBody = (nowMs: number) => {
-    if (performanceSuspended()) return;
+    if (performanceSuspended()) {
+      // responsiveFrame resumes its pending callback once suspension ends.
+      return;
+    }
     // Apply opacity to the complete island (content, Mochi, borders, shadows).
     // Never dim the transparent window container or its hit-testing region.
     const opacity = Math.max(50, Math.min(100, State.settings.islandOpacity ?? 100)) / 100;
