@@ -856,14 +856,15 @@ function gamingSection(): HTMLElement {
     h("div", { class: "row setting-row" },
       h("div", { class: "setting-name" }, h("label", { text: t(label) }), help(description)),
       h("div", { class: "setting-controls" }, control));
+  const registeredSection = h("section", { class: "gaming-settings" },
+    h("h2", { text: t("Registered games") }),
+    h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") }));
   const section = h("div", { class: "general-groups gaming-page" },
     h("section", { class: "general-group" },
       h("h2", { text: t("Game optimization") }),
       gameSetting("Game optimization", "Reduce Coucou activity while playing a game.", optimization),
       gameSetting("Automatically turn on when a game is open", "Keep optimization active while a detected game is open, including in the background.", optimizationAuto)),
-    h("section", { class: "gaming-settings" },
-      h("h2", { text: t("Registered games") }),
-      h("div", { class: "hint", text: t("Coucou automatically detects supported Steam games and known game executables from other launchers. Register any missing Windows game by its .exe filename.") })));
+    registeredSection);
   const list = h("div", { class: "registered-games-list" });
   const error = h("div", { class: "hint", role: "status" });
   const executable = h("input", { type: "text", placeholder: "Game.exe", "aria-label": t("Executable filename") }) as HTMLInputElement;
@@ -915,7 +916,7 @@ function gamingSection(): HTMLElement {
       error.textContent = String(err);
     } finally { add.disabled = false; }
   });
-  section.append(
+  registeredSection.append(
     h("div", { class: "row registered-game-form" }, executable, name, add),
     error, list,
     h("div", { class: "hint", text: t("Only the executable filename is matched, not the installation folder. Detection stays local to your computer.") }));
