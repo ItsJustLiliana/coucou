@@ -74,9 +74,10 @@ function checkTempoMilestones() {
   }
   const now = spotifyPosition(state, Date.now());
   if (state.playing && State.settings.beatSync && previousPosition !== null &&
-      now >= previousPosition && now - previousPosition <= 3) {
+      now >= previousPosition) {
     for (const mark of [30, 60]) {
-      if (!checkedMilestones.has(mark) && previousPosition < mark && now >= mark) {
+      if (!checkedMilestones.has(mark) && previousPosition < mark && now >= mark &&
+          now - previousPosition <= 10) {
         checkedMilestones.add(mark);
         // Require six fresh consistent reports before adopting a new tempo.
         // The current dance BPM stays intact during this review.
