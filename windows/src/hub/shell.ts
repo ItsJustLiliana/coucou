@@ -33,6 +33,7 @@ export const NOTCH_PAGES: PageDef[] = [
   { id: "chat", icon: "chat", title: () => t("Chat"), subtitle: () => t("The AI of the island's chat, with your own keys.") },
   { id: "notifications", icon: "bell", title: () => t("Notifications"), subtitle: () => t("Which desktop notifications show in the island.") },
   { id: "integrations", icon: "puzzle", title: () => t("Integrations"), subtitle: () => t("Stripe, GitHub, Vercel, n8n, Notion and the rest.") },
+  { id: "gaming", icon: "gamepad-2", title: () => t("Gaming"), subtitle: () => t("Register games outside Steam and manage game detection.") },
   { id: "phone", icon: "phone", title: () => t("Android phone"), subtitle: () => t("Your agents and their approvals on your Android phone, over your Wi-Fi.") },
   { id: "shortcuts", icon: "keyboard", title: () => t("Shortcuts"), subtitle: () => t("The keys that open the island and its actions.") },
 ];
