@@ -32,6 +32,7 @@ export function openNoticeTarget(task: AgentTask | null | undefined): boolean {
 
 let restoreTimer: number | null = null;
 let before: string | null = null;
+let updatePinHeld = false;
 // Windows may republish the same toast with a new arrival timestamp.
 const recentNotices = new Map<string, number>();
 const DEDUPE_MS = 20_000;
@@ -89,12 +90,18 @@ function handle(island: Island, n: DesktopNotification) {
   // The compact island has no text: the card with the message opens, as it does
   // when Claude Code finishes.
   if (State.mode !== "expanded") island.alert("finished");
-  if (update) island.stay();
+  if (update) {
+    island.stay();
+    updatePinHeld = true;
+  }
 
   if (restoreTimer != null) window.clearTimeout(restoreTimer);
   restoreTimer = window.setTimeout(() => {
     restoreTimer = null;
-    if (update) island.dropPin();
+    if (updatePinHeld) {
+      island.dropPin();
+      updatePinHeld = false;
+    }
     State.updateTask(NOTIFICATIONS_ID, "idle");
     if (State.focusId === NOTIFICATIONS_ID && before && State.tasks.some((t) => t.id === before)) {
       State.setFocus(before);

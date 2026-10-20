@@ -142,7 +142,8 @@ export class Island {
       if (on) {
         this.syncBeat(false);
       } else {
-        // A suspended frame must not leave Mochi's animation loop dormant.
+        this.cancelFrame();
+        this.running = false;
         this.lastFrame = performance.now();
         this.ensureRunning();
       }
@@ -361,7 +362,8 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.openOnHover = State.settings.openOnHover;
-    this.fsm.keepVisible = State.settings.keepVisible;
+    this.fsm.keepVisible = State.settings.keepVisible || State.tasks.some((task) =>
+      ["thinking", "working", "ratelimit", "question", "approval"].includes(task.state));
     this.fsm.petitToHiddenDelay = State.settings.compactHideDelay ?? 60;
     this.fsm.onTransition = (from, to) => {
       // The greeting is over, however it ended: back to his desktop spot.
@@ -1077,7 +1079,7 @@ export class Island {
 
   private frameBody = (nowMs: number) => {
     if (performanceSuspended()) {
-      // responsiveFrame resumes its pending callback once suspension ends.
+      this.running = false;
       return;
     }
     // Apply opacity to the complete island (content, Mochi, borders, shadows).
@@ -1343,7 +1345,8 @@ export class Island {
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.openOnHover = State.settings.openOnHover;
-    this.fsm.keepVisible = State.settings.keepVisible;
+    this.fsm.keepVisible = State.settings.keepVisible || State.tasks.some((task) =>
+      ["thinking", "working", "ratelimit", "question", "approval"].includes(task.state));
     this.fsm.petitToHiddenDelay = State.settings.compactHideDelay ?? 60;
     State.notify();
   }

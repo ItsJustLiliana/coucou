@@ -261,9 +261,10 @@ pub async fn send(
     model: &str,
     query: String,
     context: Option<ChatContext>,
+    request_id: u64,
 ) -> Result<ChatReply, String> {
     send_with(chat, server, model, query, context, |visible| {
-        let _ = app.emit_to(WINDOW_LABEL, "chat-delta", visible);
+        let _ = app.emit_to(WINDOW_LABEL, "chat-delta", json!({"requestId": request_id, "text": visible}));
     })
     .await
 }

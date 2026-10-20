@@ -659,9 +659,10 @@ async fn chat_send(
     chat: State<'_, Chat>,
     query: String,
     context: Option<ChatContext>,
+    request_id: u64,
 ) -> Result<ChatReply, String> {
     let settings = shared.settings.lock().unwrap().clone();
-    chat::send(&app, &chat, &settings, query, context).await
+    chat::send(&app, &chat, &settings, query, context, request_id).await
 }
 
 /// The models a provider offers, for the picker in the chat view. Only asked

@@ -272,6 +272,9 @@ pub fn poll(app: &AppHandle, force: bool) {
         use tauri::Emitter;
         let (game, focused) = open_game();
         GAME_FOCUSED.store(focused, Ordering::Relaxed);
+        // Cursor visibility can change in a pause menu without the game
+        // process or optimization mode changing.
+        apply_pointer_protection(app);
         let optimize = app.try_state::<crate::Shared>().is_some_and(|shared|
             optimization_wanted(&shared.settings.lock().unwrap(), game.is_some(), focused));
         set_performance(app, optimize);

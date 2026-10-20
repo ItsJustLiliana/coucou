@@ -90,8 +90,10 @@ export function phoneSection(on: boolean, makeToggle: Toggle, settings: Settings
     if (!section.isConnected) return window.clearInterval(watch);
     if (document.visibilityState !== "visible" || !clients.isConnected) return;
     void Bridge.phoneLinkStatus().then((s) => {
-      if (s?.running) clients.textContent = t("Phones connected: {count}", { count: s.clients });
-    });
+      clients.textContent = s?.running
+        ? t("Phones connected: {count}", { count: s.clients })
+        : t("Disconnected");
+    }).catch(() => { clients.textContent = t("Connection unavailable"); });
   }, 5000);
 
   const switchEl = makeToggle(on, (next) => {
@@ -189,12 +191,12 @@ function relayBlock(makeToggle: Toggle, changed: () => void): HTMLElement {
     })();
   });
 
-  void Bridge.phoneRelayStatus().then(show);
+  void Bridge.phoneRelayStatus().then(show).catch(() => { note.textContent = t("Connection unavailable"); });
   // Kept up to date while the window is open; nothing runs while it is hidden.
   const watch = window.setInterval(() => {
     if (!state.isConnected) return window.clearInterval(watch);
     if (document.visibilityState !== "visible") return;
-    void Bridge.phoneRelayStatus().then(show);
+    void Bridge.phoneRelayStatus().then(show).catch(() => { note.textContent = t("Connection unavailable"); });
   }, 5000);
 
   return h(
