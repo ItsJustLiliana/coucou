@@ -469,3 +469,15 @@ html[dir="rtl"] :is(.diff, .path, .keycap, input[type="password"], input[type="t
 .phone-group input[type="checkbox"] { accent-color:var(--green); }
 .phone-group .row:has(input[type="checkbox"]) { padding:3px 0; }
 @media(max-width:620px) { .phone-setting { grid-template-columns:minmax(0,1fr) auto; gap:10px; } .phone-group { padding:13px; } }
+
+/* Notch → Gaming: consistent compact controls and separate registered entries. */
+.gaming-settings .registered-game-form { align-items: center; gap: 10px; }
+.gaming-settings .registered-game-form input { flex: 1 1 150px; min-width: 0; }
+.gaming-settings .registered-games-list { display: flex; flex-direction: column; gap: 0; }
+.gaming-settings .registered-game-row {
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+.gaming-settings .registered-game-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.gaming-settings .registered-game-row button { flex: 0 0 auto; }
